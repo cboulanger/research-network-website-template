@@ -17,7 +17,7 @@ pages:
   image: alpine:latest
   script:
     - mkdir -p public
-    - cp -r index.html members.html projects.html events.html assets data public/
+    - cp -r index.html members.html projects.html events.html news.html pages.html assets data pages public/
   artifacts:
     paths:
       - public

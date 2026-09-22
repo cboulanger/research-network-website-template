@@ -5,10 +5,11 @@ Sociology of Law." See `docs/superpowers/specs/2026-09-22-rcsl-wg-histories-site
 for the full design.
 
 **Current state: proof of concept.** `data/members.json`, `data/projects.json`,
-and `data/events.json` contain fake/placeholder data, not the working
-group's real roster, projects, or meeting history. Replace them with real
-data (same shape, see `data/schema/`) before launch. The landing page copy
-in `index.html` is also placeholder text pending the real content.
+`data/events.json`, and `data/news.json` contain fake/placeholder data, not the
+working group's real roster, projects, news, or meeting history. Replace them
+with real data (same shape, see `data/schema/`) before launch. The landing page
+copy in `index.html` and the placeholder content in `pages/` are also pending
+the real content.
 
 ## Local preview
 
@@ -38,6 +39,13 @@ locally; CI enforces it on every push).
 - `projects.json`: `participants` is a list of member emails.
 - `events.json`: sorted newest-first automatically at render time — no
   need to keep the file itself in date order.
+- `news.json`: same shape as `events.json`. `url` can be an absolute
+  `http(s)://` link (opens in a new tab) or a relative link into the Pages
+  viewer, e.g. `pages.html?doc=about.md` (opens in the same tab).
+
+Adding a longer write-up (e.g. to link from a news item) means adding a
+`.md` or `.html` file under `pages/` — no code changes required. Link to it
+with `pages.html?doc=<filename>`.
 
 ## Manual smoke checklist (after any change)
 
@@ -50,6 +58,11 @@ locally; CI enforces it on every push).
 - [ ] Projects page, list view: toggle works both ways; narrow window
       (<700px) defaults to list view.
 - [ ] Events page: sorted newest-first, "Upcoming" badge on future dates.
+- [ ] News page: sorted newest-first; landing page shows only the 3 most
+      recent entries plus a "See all news" link.
+- [ ] Pages viewer: a `.md` doc renders as formatted HTML (not raw
+      Markdown source); an `.html` doc renders directly; a missing/invalid
+      `doc` param shows an error state instead of a blank page.
 - [ ] `npm run validate` and `npm test` both pass.
 
 ## Local tooling credentials
