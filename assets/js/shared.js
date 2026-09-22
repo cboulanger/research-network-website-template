@@ -33,6 +33,7 @@ const NAV_LINKS = [
   { href: 'members.html', label: 'Members', page: 'members' },
   { href: 'projects.html', label: 'Projects', page: 'projects' },
   { href: 'events.html', label: 'Events', page: 'events' },
+  { href: 'news.html', label: 'News', page: 'news' },
 ];
 
 export function navHTML(activePage) {

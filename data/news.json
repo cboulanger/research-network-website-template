@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-09-04",
+    "title": "Working Group approved as an official RCSL Working Group",
+    "url": "https://example.org/news/wg-approved"
+  },
+  {
+    "date": "2026-07-15",
+    "title": "New page: how the Working Group got started",
+    "url": "pages.html?doc=about.md"
+  },
+  {
+    "date": "2026-05-02",
+    "title": "Call for participation: Oral History Archive project",
+    "url": "https://example.org/news/oral-history-call"
+  },
+  {
+    "date": "2026-02-20",
+    "title": "Website proof of concept launched",
+    "url": "pages.html?doc=example.html"
+  }
+]
