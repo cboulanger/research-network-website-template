@@ -194,3 +194,7 @@ footer {
   border-bottom: 1px solid #eee;
 }
 .news-date { color: var(--color-muted); font-variant-numeric: tabular-nums; min-width: 6.5rem; }
+
+#page-content { line-height: 1.6; }
+#page-content h1, #page-content h2, #page-content h3 { margin-top: 1.5rem; }
+#page-content img { max-width: 100%; }
