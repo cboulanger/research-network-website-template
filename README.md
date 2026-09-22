@@ -7,9 +7,9 @@ for the full design.
 **Current state: proof of concept.** `data/members.json`, `data/projects.json`,
 `data/events.json`, and `data/news.json` contain fake/placeholder data, not the
 working group's real roster, projects, news, or meeting history. Replace them
-with real data (same shape, see `data/schema/`) before launch. The landing page
-copy in `index.html` and the placeholder content in `pages/` are also pending
-the real content.
+with real data (same shape, see `data/schema/`) before launch. `pages/about.md`
+holds real About/Contact/Membership content, but its three placeholder links
+(`href="#"`) and `pages/example.html` still need real content before launch.
 
 ## Local preview
 
@@ -21,7 +21,7 @@ Then open `http://localhost:8000/index.html`.
 
 ## Running checks
 
-    npm run validate   # JSON Schema validation of the three data files
+    npm run validate   # JSON Schema validation of the four data files
     npm test            # unit tests for pure logic (node --test)
 
 Both require Node.js locally (only for tooling — the deployed site itself
@@ -47,9 +47,16 @@ Adding a longer write-up (e.g. to link from a news item) means adding a
 `.md` or `.html` file under `pages/` — no code changes required. Link to it
 with `pages.html?doc=<filename>`.
 
+The landing page's left-hand "About" box is `pages/about.md` too — it's
+rendered the same way as `pages.html?doc=about.md`, just embedded directly
+into `index.html` instead of read from a query param. Editing
+`pages/about.md` updates both places at once.
+
 ## Manual smoke checklist (after any change)
 
-- [ ] Landing page: all sections render, nav links work.
+- [ ] Landing page: two-column layout below the hero (About box on the
+      left, stacked News/Events boxes on the right); About box renders
+      `pages/about.md`; narrow window (<700px) collapses to one column.
 - [ ] Members page: cards sorted by lastname; portraits or initials-avatar
       fallback render correctly.
 - [ ] Projects page, graph view: nodes render, drag/pan/zoom work, filter
@@ -57,12 +64,15 @@ with `pages.html?doc=<filename>`.
       scholar highlights their subgraph.
 - [ ] Projects page, list view: toggle works both ways; narrow window
       (<700px) defaults to list view.
-- [ ] Events page: sorted newest-first, "Upcoming" badge on future dates.
-- [ ] News page: sorted newest-first; landing page shows only the 3 most
-      recent entries plus a "See all news" link.
+- [ ] Events page: sorted newest-first, "Upcoming" badge on future dates;
+      landing page's Events box shows only the 3 most recent entries plus a
+      "See all events" link.
+- [ ] News page: sorted newest-first; landing page's News box shows only
+      the 3 most recent entries plus a "See all news" link.
 - [ ] Pages viewer: a `.md` doc renders as formatted HTML (not raw
       Markdown source); an `.html` doc renders directly; a missing/invalid
-      `doc` param shows an error state instead of a blank page.
+      `doc` param shows an error state instead of a blank page; reaching it
+      from News or Events shows a "← All News"/"← All Events" back-link.
 - [ ] `npm run validate` and `npm test` both pass.
 
 ## Local tooling credentials

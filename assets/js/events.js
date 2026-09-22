@@ -15,7 +15,7 @@ export function renderEventItem(event, today) {
     titleHTML = `<a href="${escapeHTML(event.url)}"${attrs}>${escapeHTML(event.title)}</a>`;
   }
   const badge = isUpcoming(event, today) ? '<span class="badge upcoming">Upcoming</span>' : '';
-  return `<li class="event-item"><span class="event-date">${event.date}</span><span class="event-title">${titleHTML}</span>${badge}</li>`;
+  return `<li class="event-item"><span class="event-date">${escapeHTML(event.date)}</span><span class="event-title">${titleHTML}</span>${badge}</li>`;
 }
 
 export function renderEvents(events, container, today = new Date().toISOString().slice(0, 10)) {
