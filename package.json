@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.js",
     "validate:members": "npx --yes ajv-cli validate -s data/schema/members.schema.json -d data/members.json",
     "validate:projects": "npx --yes ajv-cli validate -s data/schema/projects.schema.json -d data/projects.json",
     "validate:events": "npx --yes ajv-cli validate -s data/schema/events.schema.json -d data/events.json",
