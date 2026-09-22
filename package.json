@@ -1,0 +1,12 @@
+{
+  "name": "rcsl-wg-histories",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "validate:members": "npx --yes ajv-cli validate -s data/schema/members.schema.json -d data/members.json",
+    "validate:projects": "npx --yes ajv-cli validate -s data/schema/projects.schema.json -d data/projects.json",
+    "validate:events": "npx --yes ajv-cli validate -s data/schema/events.schema.json -d data/events.json",
+    "validate": "npm run validate:members && npm run validate:projects && npm run validate:events"
+  }
+}

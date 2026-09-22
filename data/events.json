@@ -1,0 +1,25 @@
+[
+  {
+    "date": "2022-01-20",
+    "title": "Informal planning call"
+  },
+  {
+    "date": "2023-03-10",
+    "title": "Founding roundtable, Onati",
+    "url": "https://example.org/events/onati-2023"
+  },
+  {
+    "date": "2024-09-04",
+    "title": "Working Group approved at RCSL Board meeting, Bangor, Wales",
+    "url": "https://example.org/events/bangor-2024"
+  },
+  {
+    "date": "2025-07-02",
+    "title": "Second Working Group meeting (online)"
+  },
+  {
+    "date": "2026-11-12",
+    "title": "Next Working Group meeting, Berlin",
+    "url": "https://example.org/events/berlin-2026"
+  }
+]

@@ -7,3 +7,6 @@ Thumbs.db
 
 # Visual brainstorming companion mockups/state (not project deliverables)
 .superpowers/
+
+# npx-installed tooling (ajv-cli), never committed
+node_modules/

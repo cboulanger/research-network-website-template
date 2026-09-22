@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Projects",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "title", "participants"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+      "title": { "type": "string", "minLength": 1 },
+      "subtitle": { "type": "string" },
+      "description": { "type": "string" },
+      "url": { "type": "string", "pattern": "^https?://" },
+      "image_url": { "type": "string", "pattern": "^https?://" },
+      "participants": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }
+      }
+    }
+  }
+}

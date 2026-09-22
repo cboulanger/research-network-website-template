@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Members",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["lastname", "firstname", "affiliation", "email"],
+    "properties": {
+      "lastname": { "type": "string", "minLength": 1 },
+      "firstname": { "type": "string", "minLength": 1 },
+      "affiliation": { "type": "string", "minLength": 1 },
+      "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+      "url": { "type": "string", "pattern": "^https?://" },
+      "portrait_url": { "type": "string", "pattern": "^https?://" }
+    }
+  }
+}
