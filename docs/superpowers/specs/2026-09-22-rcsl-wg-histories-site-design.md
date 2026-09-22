@@ -40,11 +40,18 @@ documents. There is no server, no database, and no build step.
 ## Architecture
 
 Plain HTML/CSS/vanilla JS. No framework, no bundler, no build step. Two
-external dependencies, both loaded via CDN `<script>` tag and each scoped to
-a single page: [D3](https://d3js.org/) (`d3-force`, `d3-selection`,
-`d3-drag`, `d3-zoom`) for the Projects page's graph view, and
-[marked](https://marked.js.org/) for rendering Markdown on the Pages content
-viewer.
+external dependencies, both loaded via CDN `<script>` tag, each pinned to an
+exact version with a Subresource Integrity hash: [D3](https://d3js.org/)
+(`d3-force`, `d3-selection`, `d3-drag`, `d3-zoom`), scoped to the Projects
+page's graph view, and [marked](https://marked.js.org/) for rendering
+Markdown, scoped to any page that renders a `pages/` document — the Pages
+content viewer itself, and the landing page's About box (see "Pages content
+viewer" and "Landing page" below).
+
+The `pages/`-document rendering logic (filename validation, fetch, and
+Markdown-or-raw-HTML rendering) lives in `shared.js` as `renderPageDoc()`,
+not duplicated per page, since both the Pages viewer and the landing page
+need it.
 
 Each page fetches the JSON data client-side (`fetch('data/*.json')`) on load
 and renders the DOM directly from it. There is no templating or
@@ -72,16 +79,20 @@ server-side rendering step of any kind.
 │       └── news.schema.json
 ├── pages/                     # freeform content documents (.md or .html),
 │                               # rendered by pages.html — see "Pages" below
-│   └── about.md                 # example/placeholder content document
+│   └── about.md                 # About/Contact/Membership/Meetings content,
+│                                 # also rendered into the landing page's
+│                                 # About box — see "Landing page" below
 ├── assets/
 │   ├── css/style.css
 │   ├── js/
 │   │   ├── members.js         # renders members.html
 │   │   ├── projects-graph.js  # d3-force graph, list-view toggle, filter, modal
-│   │   ├── events.js          # renders events.html
+│   │   ├── events.js          # renders events.html and the landing page's events teaser
 │   │   ├── news.js            # renders news.html and the landing page's news teaser
-│   │   ├── pages.js            # renders pages.html
-│   │   └── shared.js          # nav, initials-avatar fallback, etc.
+│   │   ├── pages.js            # renders pages.html (doc param, back-link, page title)
+│   │   └── shared.js          # nav, initials-avatar fallback, renderPageDoc, etc. —
+│   │                           # renderPageDoc is also called directly by index.html
+│   │                           # for the landing page's About box
 │   └── img/                   # local static assets only (logo, favicon) —
 │                               # member/project images are hotlinked, not stored here
 ├── .gitlab-ci.yml
@@ -195,34 +206,44 @@ trust model works instead.)
 
 ### Landing page (`index.html`)
 
-Static content adapted directly from the group's current HedgeDoc pad — no
-new content invented. Sections, in order:
+Fully modular — nothing on the landing page below the hero is hardcoded
+content; it's all rendered client-side from `pages/about.md` and the
+`news.json`/`events.json` data files, the same machinery the rest of the
+site already uses. Structure, in order:
 
 1. Header/nav (site title left; Home / Members / Projects / Events / News
    right; active page underlined in the accent color). `pages.html` is
-   reached only via links from News (or other content), not from the main
-   nav, since it's a generic viewer rather than a fixed section.
+   reached only via links from News/Events (or other content), not from the
+   main nav, since it's a generic viewer rather than a fixed section.
 2. Hero: "RCSL Working Group 'Histories of the Sociology of Law'" + status
    line (approved at the RCSL Board meeting, Bangor, Wales, 4 September
-   2024).
-3. "About the Working Group" — links to the board-meeting presentation and
-   the roundtable minutes.
-4. "Contact" — chair's name, affiliation, email (`mailto:`).
-5. "Membership & mailing list" — subscribe-by-blank-email and
-   subscribe-via-listinfo-page instructions, the note that unsubscribing
-   is treated as leaving the WG, and the note that RCSL membership is
-   required for *formal* WG membership.
-6. "Meetings" — a short pointer to the Events page for the full history and
-   the next planned meeting (e.g. "See the Events page for past meetings and
-   the next gathering."), rather than listing dates on the landing page
-   itself. The events data lives only in `events.json`, so this stays
-   accurate without editing `index.html`.
-7. "News" — the 3 most recent entries from `news.json` (date + linked
-   title, same link-resolution rule as the News page), plus a "See all news
-   →" link to the News page. Rendered client-side from `news.json`, same
-   pattern as the Meetings pointer above — no news content is hardcoded
-   into `index.html`.
-8. Footer — links to Members, Projects, Events, and News pages.
+   2024). Still hardcoded — this is the one piece of fixed branding/framing
+   for the page, not content that belongs in a maintainable document.
+3. A two-column layout below the hero (collapsing to a single column below
+   ~700px, same breakpoint as the rest of the site):
+   - **Left column — the "About" box:** rendered via `shared.js`'s
+     `renderPageDoc('about.md', container)` into a box on the page — the
+     exact same function `pages.html` uses for `?doc=`-selected documents,
+     just called directly with a fixed filename instead of a query param.
+     `pages/about.md` holds what used to be the landing page's hardcoded
+     About/Contact/Membership & mailing list/Meetings content (see "Pages
+     content viewer" below) — editing that one file updates both the
+     landing page's About box and the standalone
+     `pages.html?doc=about.md` view. No separate "About" section exists in
+     `index.html` itself anymore.
+   - **Right column — two stacked boxes, "News" and "Events"**, styled
+     identically (mirroring each other): each shows its 3 most recent
+     entries (date + linked title, using each page's own link-resolution
+     rule) plus a "See all news →" / "See all events →" link to the full
+     page. Both rendered client-side from their respective JSON files —
+     `renderNewsTeaser`/`renderEventsTeaser`, the same two functions used
+     to build the full News/Events pages, just capped at 3 items. No
+     content is hardcoded into `index.html` for either box.
+4. Footer — links to Members, Projects, Events, and News pages.
+
+Because the About box, the News box, and the Events box are all rendered
+from files/data rather than markup, there is no `index.html` change
+required to update any of that content going forward.
 
 ### Members page (`members.html`)
 
@@ -242,10 +263,11 @@ list view" for its alternative.
 A simple reverse-chronological list rendered from `events.json`, newest
 first — so the next planned meeting (or, once it's passed, the most recent
 one) is always the top entry. Each entry: date, title (linking to `url` if
-present). No graphics, no pagination; a plain, fast-scanning list is
-sufficient for a working group's meeting cadence. This is the single source
-of truth for meeting history — the landing page only links here rather than
-duplicating the list.
+present, external or internal per the same link-resolution rule as News —
+see "News page" above). No graphics, no pagination; a plain, fast-scanning
+list is sufficient for a working group's meeting cadence. This is the
+single source of truth for meeting history — the landing page only teases
+the latest 3 entries rather than duplicating the full list.
 
 ## Projects graph
 
@@ -302,15 +324,20 @@ resolution: if `url` starts with `http`, it's an external link (opens in a
 new tab, `target="_blank" rel="noopener"`); otherwise it's a relative link
 into the Pages viewer (e.g. `pages.html?doc=about.md`), opened in the same
 tab. This is the single source of truth for news history — the landing page
-only teases the latest 3 entries.
+only teases the latest 3 entries. `events.json`'s `url` field follows the
+exact same shape and link-resolution rule (events can link externally or
+into the Pages viewer too, not just News), and the landing page's Events
+teaser box mirrors the News teaser box in both behavior and styling — same
+"3 most recent + See all →" pattern, same underlying render function shape
+(`renderEventsTeaser` alongside `renderNewsTeaser`).
 
 ### Pages content viewer (`pages.html`)
 
 A generic renderer for freeform content documents stored in `pages/`, for
-cases where a full JSON-driven page is overkill (e.g. a one-off "About the
-founding" writeup linked from a news item). Same shared nav as every other
-page. Reads a `doc` query parameter (`pages.html?doc=<filename>`) and
-fetches `pages/<filename>`:
+cases where a full JSON-driven page is overkill (e.g. the landing page's
+About box — see "Landing page" above). Same shared nav as every other page.
+Reads a `doc` query parameter (`pages.html?doc=<filename>`) and renders
+`pages/<filename>` via `shared.js`'s `renderPageDoc(filename, container)`:
 
 - If the filename ends in `.html`, the fetched content is injected directly
   into the content area (`innerHTML`) — the document is a complete HTML
@@ -321,14 +348,33 @@ fetches `pages/<filename>`:
 - Any other extension, or a missing/unreadable file, shows an error state
   ("Couldn't load this page.") rather than a blank screen.
 
+`renderPageDoc` itself only handles the filename-validate → fetch → render
+step; `pages.html` additionally sets `document.title` from the rendered
+document's first `<h1>` (falling back to a title-cased version of the
+filename if there's no heading), so different `?doc=` URLs are
+distinguishable in browser tabs/history/bookmarks.
+
+**Back-link footer:** when `pages.html` is reached by following a link from
+`news.html` or `events.html`, it shows a "← All News" / "← All Events" link
+back to that page, so the reader isn't stranded on a standalone document.
+Detected from `document.referrer` (checking whether it contains
+`/news.html` or `/events.html`) rather than a query parameter, since
+there's no backend to thread that through otherwise; if the referrer is
+absent or stripped (direct navigation, a bookmark, browser privacy
+settings), no back-link is shown — that's correct behavior, not a bug. The
+back-link only ever produces one of two hardcoded same-origin destinations,
+never anything derived from the referrer value itself, so it carries no
+open-redirect or injection risk regardless of what the referrer contains.
+
 **Trust model:** documents in `pages/` are maintainer-authored static files
 edited via the same GitLab merge-request workflow as `data/*.json` — not
 user input, not dynamic. Injecting their (HTML or Markdown-rendered-to-HTML)
 content unescaped is therefore consistent with the trust boundary already
-established for `index.html`'s own hardcoded markup, and is a deliberate
-exception to the escaping rule in "Error handling & edge cases" below, which
-applies to *data-file field values* (names, titles, descriptions), not to
-whole documents meant to contain rich HTML.
+established for the landing page's own About box (which renders the exact
+same kind of document), and is a deliberate exception to the escaping rule
+in "Error handling & edge cases" below, which applies to *data-file field
+values* (names, titles, descriptions), not to whole documents meant to
+contain rich HTML.
 
 **`doc` parameter safety:** the `doc` value is validated against a filename
 allowlist pattern (letters, digits, hyphens, underscores, a single dot
@@ -336,7 +382,9 @@ before the extension, no `/`) before being used in the fetch path — not
 because a static site's client-side `fetch` can escape the site's own
 origin, but to fail predictably on a malformed or mistyped link rather than
 attempting to fetch an unintended path within the site (e.g. a JSON data
-file).
+file). The landing page's About box calls `renderPageDoc('about.md', ...)`
+directly with a fixed, trusted filename, so this validation is inert but
+still runs on that path too (uniform behavior, no special-casing).
 
 ## Visual design system
 
@@ -352,7 +400,14 @@ file).
   gets the same color, and avatar colors stay visually distinct from the
   blue project boxes.
 - **Layout:** shared top nav across all pages; max-width content container
-  (~1100–1200px), centered; generous padding.
+  (~1100–1200px), centered; generous padding. Boxed content ("cards") share
+  one visual treatment across the site — 1px light-gray border, 8px rounded
+  corners, padding — used for member cards, and for the landing page's
+  About/News/Events boxes.
+- **Landing page layout:** a two-column grid below the hero (~2:1 ratio) —
+  the About box on the left, a narrower sidebar with the stacked News and
+  Events boxes on the right — collapsing to a single column (About, then
+  News, then Events) below ~700px.
 - **Responsive:** grid and graph layouts collapse to single-column /
   fit-to-width below ~700px, per-page specifics noted above.
 
