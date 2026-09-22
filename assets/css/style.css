@@ -122,3 +122,51 @@ footer {
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
+
+.graph-controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+#project-filter { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; }
+#view-toggle { padding: 0.5rem 1rem; border: 1px solid var(--color-accent); color: var(--color-accent); background: #fff; border-radius: 6px; cursor: pointer; }
+
+#graph-view { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+#graph-svg { width: 100%; height: 600px; display: block; }
+
+.node-dimmed { opacity: 0.15; }
+
+.project-box rect { fill: var(--color-accent); }
+.project-box text { fill: #fff; font-size: 12px; pointer-events: none; }
+.scholar-circle circle { stroke: #fff; stroke-width: 2px; }
+.scholar-circle image { clip-path: circle(50%); }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal[hidden] { display: none; }
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+}
+.modal-content img { width: 100%; border-radius: 6px; margin-bottom: 1rem; }
+#modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+#project-list { list-style: none; margin: 0; padding: 0; }
+#project-list li { padding: 1rem 0; border-bottom: 1px solid #eee; }
+#project-list .participants a { margin-right: 0.5rem; }

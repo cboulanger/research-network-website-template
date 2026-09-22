@@ -1,3 +1,5 @@
+import { fetchJSON, getInitials, hashColor, initNav } from './shared.js';
+
 export function buildGraphData(projects, members) {
   const memberByEmail = new Map(members.map((m) => [m.email, m]));
   const nodes = [];
@@ -42,4 +44,201 @@ export function buildProjectListItems(projects, members) {
       .filter(Boolean)
       .map((m) => ({ name: `${m.firstname} ${m.lastname}`, email: m.email })),
   }));
+}
+
+function renderListView(projects, members, container) {
+  const items = buildProjectListItems(projects, members);
+  container.innerHTML = items.length
+    ? items
+        .map(
+          (p) => `<li>
+            <h3>${p.title}</h3>
+            ${p.subtitle ? `<p class="subtitle">${p.subtitle}</p>` : ''}
+            ${p.description ? `<p>${p.description}</p>` : ''}
+            <p class="participants">${p.participantNames
+              .map((s) => `<a href="members.html#${encodeURIComponent(s.email)}">${s.name}</a>`)
+              .join(', ')}</p>
+            ${p.url ? `<a href="${p.url}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
+          </li>`
+        )
+        .join('')
+    : '<li class="empty-state">No projects yet.</li>';
+}
+
+function openModal(project) {
+  const modal = document.getElementById('project-modal');
+  document.getElementById('modal-title').textContent = project.title;
+  document.getElementById('modal-subtitle').textContent = project.subtitle || '';
+  document.getElementById('modal-description').textContent = project.description || '';
+
+  const img = document.getElementById('modal-image');
+  if (project.image_url) {
+    img.src = project.image_url;
+    img.hidden = false;
+  } else {
+    img.hidden = true;
+  }
+
+  const link = document.getElementById('modal-link');
+  if (project.url) {
+    link.href = project.url;
+    link.hidden = false;
+  } else {
+    link.hidden = true;
+  }
+
+  modal.hidden = false;
+}
+
+function closeModal() {
+  document.getElementById('project-modal').hidden = true;
+}
+
+function highlight(centerNode, links, nodeSel, linkSel) {
+  const connected = new Set([centerNode.id]);
+  links.forEach((l) => {
+    if (l.source.id === centerNode.id) connected.add(l.target.id);
+    if (l.target.id === centerNode.id) connected.add(l.source.id);
+  });
+  nodeSel.classed('node-dimmed', (d) => !connected.has(d.id));
+  linkSel.classed('node-dimmed', (l) => !(connected.has(l.source.id) && connected.has(l.target.id)));
+}
+
+function applyFilter(query, nodes, nodeSel, linkSel) {
+  if (!query.trim()) {
+    nodeSel.classed('node-dimmed', false);
+    linkSel.classed('node-dimmed', false);
+    return;
+  }
+  const matching = new Set(nodes.filter((n) => filterMatches(query, n)).map((n) => n.id));
+  nodeSel.classed('node-dimmed', (d) => !matching.has(d.id));
+  linkSel.classed('node-dimmed', (l) => !(matching.has(l.source.id) && matching.has(l.target.id)));
+}
+
+function renderGraphView(nodes, links, svg) {
+  const width = svg.clientWidth || 900;
+  const height = 600;
+  const d3svg = d3.select(svg).attr('viewBox', [0, 0, width, height]);
+  d3svg.selectAll('*').remove();
+
+  const zoomLayer = d3svg.append('g');
+  d3svg.call(
+    d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => zoomLayer.attr('transform', event.transform))
+  );
+
+  const simulation = d3
+    .forceSimulation(nodes)
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('link', d3.forceLink(links).id((d) => d.id).distance(110))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collide', d3.forceCollide(40));
+
+  const link = zoomLayer.append('g').attr('stroke', '#ccc').selectAll('line').data(links).join('line');
+
+  const node = zoomLayer
+    .append('g')
+    .selectAll('g')
+    .data(nodes)
+    .join('g')
+    .attr('class', (d) => (d.type === 'project' ? 'project-box' : 'scholar-circle'))
+    .call(
+      d3
+        .drag()
+        .on('start', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        })
+    );
+
+  node.each(function (d) {
+    const g = d3.select(this);
+    if (d.type === 'project') {
+      g.append('rect').attr('width', 140).attr('height', 48).attr('x', -70).attr('y', -24).attr('rx', 8);
+      g.append('text').attr('text-anchor', 'middle').attr('y', -4).text(d.data.title);
+      g.append('text').attr('text-anchor', 'middle').attr('y', 12).attr('font-size', 10).text(d.data.subtitle || '');
+      g.style('cursor', 'pointer').on('click', () => openModal(d.data));
+    } else {
+      const initials = getInitials(d.data.firstname, d.data.lastname);
+      const color = hashColor(d.data.email);
+      g.append('circle').attr('r', 26).attr('fill', color);
+      const initialsText = () =>
+        g.append('text').attr('text-anchor', 'middle').attr('dy', 4).attr('fill', '#fff').text(initials);
+      if (d.data.portrait_url) {
+        g.append('image')
+          .attr('href', d.data.portrait_url)
+          .attr('x', -26)
+          .attr('y', -26)
+          .attr('width', 52)
+          .attr('height', 52)
+          .on('error', function () {
+            d3.select(this).remove();
+            initialsText();
+          });
+      } else {
+        initialsText();
+      }
+      g.style('cursor', 'pointer').on('click', () => highlight(d, links, node, link));
+    }
+  });
+
+  simulation.on('tick', () => {
+    link
+      .attr('x1', (d) => d.source.x)
+      .attr('y1', (d) => d.source.y)
+      .attr('x2', (d) => d.target.x)
+      .attr('y2', (d) => d.target.y);
+    node.attr('transform', (d) => `translate(${d.x},${d.y})`);
+  });
+
+  return { node, link };
+}
+
+function setView(mode) {
+  document.getElementById('graph-view').hidden = mode !== 'graph';
+  document.getElementById('list-view').hidden = mode !== 'list';
+  document.getElementById('view-toggle').textContent =
+    mode === 'graph' ? 'Switch to list view' : 'Switch to graph view';
+}
+
+if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
+  initNav('projects');
+
+  Promise.all([fetchJSON('data/projects.json'), fetchJSON('data/members.json')])
+    .then(([projects, members]) => {
+      renderListView(projects, members, document.getElementById('project-list'));
+
+      const { nodes, links } = buildGraphData(projects, members);
+      const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'));
+
+      document.getElementById('project-filter').addEventListener('input', (e) => {
+        applyFilter(e.target.value, nodes, node, link);
+      });
+
+      document.getElementById('modal-close').addEventListener('click', closeModal);
+      document.getElementById('project-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'project-modal') closeModal();
+      });
+
+      const toggle = document.getElementById('view-toggle');
+      let mode = window.innerWidth < 700 ? 'list' : 'graph';
+      setView(mode);
+      toggle.addEventListener('click', () => {
+        mode = mode === 'graph' ? 'list' : 'graph';
+        setView(mode);
+      });
+    })
+    .catch((err) => {
+      document.getElementById('graph-view').innerHTML = '<p class="error-state">Couldn\'t load project data.</p>';
+      console.error(err);
+    });
 }
