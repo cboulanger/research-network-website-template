@@ -11,8 +11,8 @@
       "title": { "type": "string", "minLength": 1 },
       "subtitle": { "type": "string" },
       "description": { "type": "string" },
-      "url": { "type": "string", "pattern": "^https?://" },
-      "image_url": { "type": "string", "pattern": "^https?://" },
+      "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "image_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
       "participants": {
         "type": "array",
         "items": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }

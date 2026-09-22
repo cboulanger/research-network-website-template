@@ -1,3 +1,9 @@
+export function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
 export function getInitials(firstname, lastname) {
   const f = (firstname || '').trim().charAt(0);
   const l = (lastname || '').trim().charAt(0);

@@ -4,9 +4,10 @@ stages:
 
 validate:
   stage: validate
-  image: node:20-alpine
+  image: node:22-alpine
   script:
     - npm run validate
+    - npm test
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

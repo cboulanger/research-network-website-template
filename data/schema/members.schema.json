@@ -11,8 +11,8 @@
       "firstname": { "type": "string", "minLength": 1 },
       "affiliation": { "type": "string", "minLength": 1 },
       "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
-      "url": { "type": "string", "pattern": "^https?://" },
-      "portrait_url": { "type": "string", "pattern": "^https?://" }
+      "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "portrait_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { fetchJSON, getInitials, hashColor, initNav } from './shared.js';
+import { fetchJSON, getInitials, hashColor, initNav, escapeHTML } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberByEmail = new Map(members.map((m) => [m.email, m]));
@@ -52,13 +52,13 @@ function renderListView(projects, members, container) {
     ? items
         .map(
           (p) => `<li>
-            <h3>${p.title}</h3>
-            ${p.subtitle ? `<p class="subtitle">${p.subtitle}</p>` : ''}
-            ${p.description ? `<p>${p.description}</p>` : ''}
+            <h3>${escapeHTML(p.title)}</h3>
+            ${p.subtitle ? `<p class="subtitle">${escapeHTML(p.subtitle)}</p>` : ''}
+            ${p.description ? `<p>${escapeHTML(p.description)}</p>` : ''}
             <p class="participants">${p.participantNames
-              .map((s) => `<a href="members.html#${encodeURIComponent(s.email)}">${s.name}</a>`)
+              .map((s) => `<a href="members.html#${encodeURIComponent(s.email)}">${escapeHTML(s.name)}</a>`)
               .join(', ')}</p>
-            ${p.url ? `<a href="${p.url}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
+            ${p.url ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
           </li>`
         )
         .join('')
@@ -131,7 +131,7 @@ function renderGraphView(nodes, links, svg) {
     .force('charge', d3.forceManyBody().strength(-250))
     .force('link', d3.forceLink(links).id((d) => d.id).distance(110))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collide', d3.forceCollide(40));
+    .force('collide', d3.forceCollide(75));
 
   const link = zoomLayer.append('g').attr('stroke', '#ccc').selectAll('line').data(links).join('line');
 
@@ -164,7 +164,9 @@ function renderGraphView(nodes, links, svg) {
     const g = d3.select(this);
     if (d.type === 'project') {
       g.append('rect').attr('width', 140).attr('height', 48).attr('x', -70).attr('y', -24).attr('rx', 8);
-      g.append('text').attr('text-anchor', 'middle').attr('y', -4).text(d.data.title);
+      const label = d.data.title.length > 22 ? d.data.title.slice(0, 21) + '…' : d.data.title;
+      g.append('text').attr('text-anchor', 'middle').attr('y', -4).text(label);
+      g.append('title').text(d.data.title);
       g.append('text').attr('text-anchor', 'middle').attr('y', 12).attr('font-size', 10).text(d.data.subtitle || '');
       g.style('cursor', 'pointer').on('click', () => openModal(d.data));
     } else {
@@ -218,16 +220,21 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
       renderListView(projects, members, document.getElementById('project-list'));
 
       const { nodes, links } = buildGraphData(projects, members);
-      const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'));
 
-      document.getElementById('project-filter').addEventListener('input', (e) => {
-        applyFilter(e.target.value, nodes, node, link);
-      });
+      if (projects.length === 0) {
+        document.getElementById('graph-view').innerHTML = '<p class="empty-state">No projects yet.</p>';
+      } else {
+        const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'));
 
-      document.getElementById('modal-close').addEventListener('click', closeModal);
-      document.getElementById('project-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'project-modal') closeModal();
-      });
+        document.getElementById('project-filter').addEventListener('input', (e) => {
+          applyFilter(e.target.value, nodes, node, link);
+        });
+
+        document.getElementById('modal-close').addEventListener('click', closeModal);
+        document.getElementById('project-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'project-modal') closeModal();
+        });
+      }
 
       const toggle = document.getElementById('view-toggle');
       let mode = window.innerWidth < 700 ? 'list' : 'graph';
