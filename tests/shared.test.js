@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getInitials, hashColor, navHTML } from '../assets/js/shared.js';
+import { getInitials, hashColor, navHTML, isExternalLink } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
   assert.equal(getInitials('Christian', 'Boulanger'), 'CB');
@@ -31,4 +31,13 @@ test('navHTML marks the active page link', () => {
 test('navHTML has no active class when page does not match any link', () => {
   const html = navHTML('nonexistent');
   assert.doesNotMatch(html, /class="active"/);
+});
+
+test('isExternalLink recognizes absolute http(s) URLs', () => {
+  assert.equal(isExternalLink('https://example.org'), true);
+  assert.equal(isExternalLink('http://example.org'), true);
+});
+
+test('isExternalLink treats relative links as internal', () => {
+  assert.equal(isExternalLink('pages.html?doc=about.md'), false);
 });

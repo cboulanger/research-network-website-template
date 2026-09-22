@@ -1,4 +1,4 @@
-import { fetchJSON, initNav, escapeHTML } from './shared.js';
+import { fetchJSON, initNav, escapeHTML, isExternalLink } from './shared.js';
 
 export function sortEventsByDateDesc(events) {
   return [...events].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -9,9 +9,11 @@ export function isUpcoming(event, today = new Date().toISOString().slice(0, 10))
 }
 
 export function renderEventItem(event, today) {
-  const titleHTML = event.url
-    ? `<a href="${escapeHTML(event.url)}" target="_blank" rel="noopener">${escapeHTML(event.title)}</a>`
-    : escapeHTML(event.title);
+  let titleHTML = escapeHTML(event.title);
+  if (event.url) {
+    const attrs = isExternalLink(event.url) ? ' target="_blank" rel="noopener"' : '';
+    titleHTML = `<a href="${escapeHTML(event.url)}"${attrs}>${escapeHTML(event.title)}</a>`;
+  }
   const badge = isUpcoming(event, today) ? '<span class="badge upcoming">Upcoming</span>' : '';
   return `<li class="event-item"><span class="event-date">${event.date}</span><span class="event-title">${titleHTML}</span>${badge}</li>`;
 }

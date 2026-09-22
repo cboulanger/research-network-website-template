@@ -27,3 +27,13 @@ test('renderEventItem shows an upcoming badge for future dates', () => {
   const html = renderEventItem(events[1], '2026-09-22');
   assert.match(html, /badge upcoming/);
 });
+
+test('renderEventItem adds target=_blank only for external links', () => {
+  const external = renderEventItem(events[1], '2026-09-22');
+  const internal = renderEventItem(
+    { date: '2025-07-02', title: 'Online meeting', url: 'pages.html?doc=notes.md' },
+    '2026-09-22'
+  );
+  assert.match(external, /target="_blank" rel="noopener"/);
+  assert.doesNotMatch(internal, /target="_blank"/);
+});

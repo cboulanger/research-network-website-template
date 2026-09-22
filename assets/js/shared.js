@@ -20,6 +20,10 @@ export function hashColor(key, palette = AVATAR_PALETTE) {
   return palette[hash % palette.length];
 }
 
+export function isExternalLink(url) {
+  return /^https?:\/\//i.test(url);
+}
+
 export async function fetchJSON(url) {
   const res = await fetch(url);
   if (!res.ok) {

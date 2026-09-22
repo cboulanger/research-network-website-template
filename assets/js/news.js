@@ -1,11 +1,9 @@
-import { fetchJSON, initNav, escapeHTML } from './shared.js';
+import { fetchJSON, initNav, escapeHTML, isExternalLink } from './shared.js';
+
+export { isExternalLink };
 
 export function sortNewsByDateDesc(items) {
   return [...items].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-}
-
-export function isExternalLink(url) {
-  return /^https?:\/\//i.test(url);
 }
 
 export function renderNewsItem(item) {
