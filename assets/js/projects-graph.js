@@ -166,8 +166,11 @@ function renderGraphView(nodes, links, svg) {
       g.append('rect').attr('width', 140).attr('height', 48).attr('x', -70).attr('y', -24).attr('rx', 8);
       const label = d.data.title.length > 22 ? d.data.title.slice(0, 21) + '…' : d.data.title;
       g.append('text').attr('text-anchor', 'middle').attr('y', -4).text(label);
-      g.append('title').text(d.data.title);
-      g.append('text').attr('text-anchor', 'middle').attr('y', 12).attr('font-size', 10).text(d.data.subtitle || '');
+      const subtitleLabel = d.data.subtitle && d.data.subtitle.length > 30
+        ? d.data.subtitle.slice(0, 29) + '…'
+        : (d.data.subtitle || '');
+      g.append('title').text(d.data.subtitle ? `${d.data.title}\n${d.data.subtitle}` : d.data.title);
+      g.append('text').attr('text-anchor', 'middle').attr('y', 12).attr('font-size', 10).text(subtitleLabel);
       g.style('cursor', 'pointer').on('click', () => openModal(d.data));
     } else {
       const initials = getInitials(d.data.firstname, d.data.lastname);
