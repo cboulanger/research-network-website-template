@@ -1,0 +1,9 @@
+# Local secrets (see .env.example)
+.env
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Visual brainstorming companion mockups/state (not project deliverables)
+.superpowers/
