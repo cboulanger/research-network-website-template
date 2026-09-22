@@ -137,6 +137,20 @@ footer {
 .scholar-circle circle { stroke: #fff; stroke-width: 2px; }
 .scholar-circle image { clip-path: circle(50%); }
 
+.scholar-tooltip {
+  position: fixed;
+  transform: translate(-50%, -120%);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  z-index: 10;
+}
+.scholar-tooltip[hidden] { display: none; }
+.scholar-tooltip a { color: #fff; text-decoration: underline; }
+
 .modal {
   position: fixed;
   inset: 0;

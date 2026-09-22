@@ -94,6 +94,23 @@ function closeModal() {
   document.getElementById('project-modal').hidden = true;
 }
 
+function showScholarLabel(member, x, y) {
+  const tooltip = document.getElementById('scholar-tooltip');
+  if (!tooltip) return;
+  const name = `${member.firstname} ${member.lastname}`;
+  tooltip.innerHTML = member.url
+    ? `<a href="${escapeHTML(member.url)}" target="_blank" rel="noopener">${escapeHTML(name)}</a>`
+    : escapeHTML(name);
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
+  tooltip.hidden = false;
+}
+
+function hideScholarLabel() {
+  const tooltip = document.getElementById('scholar-tooltip');
+  if (tooltip) tooltip.hidden = true;
+}
+
 function highlight(centerNode, links, nodeSel, linkSel) {
   const connected = new Set([centerNode.id]);
   links.forEach((l) => {
@@ -192,7 +209,11 @@ function renderGraphView(nodes, links, svg) {
       } else {
         initialsText();
       }
-      g.style('cursor', 'pointer').on('click', () => highlight(d, links, node, link));
+      g.style('cursor', 'pointer').on('click', (event) => {
+        event.stopPropagation();
+        highlight(d, links, node, link);
+        showScholarLabel(d.data, event.clientX, event.clientY);
+      });
     }
   });
 
@@ -237,6 +258,8 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
         document.getElementById('project-modal').addEventListener('click', (e) => {
           if (e.target.id === 'project-modal') closeModal();
         });
+
+        document.addEventListener('click', hideScholarLabel);
       }
 
       const toggle = document.getElementById('view-toggle');
