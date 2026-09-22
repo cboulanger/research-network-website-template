@@ -42,7 +42,10 @@ export function buildProjectListItems(projects, members) {
     participantNames: (project.participants || [])
       .map((email) => memberByEmail.get(email))
       .filter(Boolean)
-      .map((m) => ({ name: `${m.firstname} ${m.lastname}`, email: m.email })),
+      .map((m) => ({
+        name: m.affiliation ? `${m.firstname} ${m.lastname} (${m.affiliation})` : `${m.firstname} ${m.lastname}`,
+        email: m.email,
+      })),
   }));
 }
 
@@ -97,7 +100,9 @@ function closeModal() {
 function showScholarLabel(member, x, y) {
   const tooltip = document.getElementById('scholar-tooltip');
   if (!tooltip) return;
-  const name = `${member.firstname} ${member.lastname}`;
+  const name = member.affiliation
+    ? `${member.firstname} ${member.lastname} (${member.affiliation})`
+    : `${member.firstname} ${member.lastname}`;
   tooltip.innerHTML = member.url
     ? `<a href="${escapeHTML(member.url)}" target="_blank" rel="noopener">${escapeHTML(name)}</a>`
     : escapeHTML(name);
@@ -138,6 +143,16 @@ function renderGraphView(nodes, links, svg) {
   const d3svg = d3.select(svg).attr('viewBox', [0, 0, width, height]);
   d3svg.selectAll('*').remove();
 
+  d3svg
+    .append('defs')
+    .append('clipPath')
+    .attr('id', 'project-box-clip')
+    .append('rect')
+    .attr('x', -80)
+    .attr('y', -28)
+    .attr('width', 160)
+    .attr('height', 56);
+
   const zoomLayer = d3svg.append('g');
   d3svg.call(
     d3.zoom().scaleExtent([0.3, 3]).on('zoom', (event) => zoomLayer.attr('transform', event.transform))
@@ -148,7 +163,7 @@ function renderGraphView(nodes, links, svg) {
     .force('charge', d3.forceManyBody().strength(-250))
     .force('link', d3.forceLink(links).id((d) => d.id).distance(110))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collide', d3.forceCollide(75));
+    .force('collide', d3.forceCollide(90));
 
   const link = zoomLayer.append('g').attr('stroke', '#ccc').selectAll('line').data(links).join('line');
 
@@ -180,14 +195,23 @@ function renderGraphView(nodes, links, svg) {
   node.each(function (d) {
     const g = d3.select(this);
     if (d.type === 'project') {
-      g.append('rect').attr('width', 140).attr('height', 48).attr('x', -70).attr('y', -24).attr('rx', 8);
-      const label = d.data.title.length > 22 ? d.data.title.slice(0, 21) + '…' : d.data.title;
-      g.append('text').attr('text-anchor', 'middle').attr('y', -4).text(label);
-      const subtitleLabel = d.data.subtitle && d.data.subtitle.length > 30
-        ? d.data.subtitle.slice(0, 29) + '…'
+      g.append('rect').attr('width', 160).attr('height', 56).attr('x', -80).attr('y', -28).attr('rx', 8);
+      const label = d.data.title.length > 24 ? d.data.title.slice(0, 23) + '…' : d.data.title;
+      g.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('y', -6)
+        .attr('clip-path', 'url(#project-box-clip)')
+        .text(label);
+      const subtitleLabel = d.data.subtitle && d.data.subtitle.length > 34
+        ? d.data.subtitle.slice(0, 33) + '…'
         : (d.data.subtitle || '');
       g.append('title').text(d.data.subtitle ? `${d.data.title}\n${d.data.subtitle}` : d.data.title);
-      g.append('text').attr('text-anchor', 'middle').attr('y', 12).attr('font-size', 10).text(subtitleLabel);
+      g.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('y', 12)
+        .attr('font-size', 10)
+        .attr('clip-path', 'url(#project-box-clip)')
+        .text(subtitleLabel);
       g.style('cursor', 'pointer').on('click', () => openModal(d.data));
     } else {
       const initials = getInitials(d.data.firstname, d.data.lastname);
