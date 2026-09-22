@@ -67,3 +67,41 @@ footer {
   .site-nav { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
   .nav-links a { margin-left: 0; margin-right: 1rem; }
 }
+
+.member-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.member-card {
+  text-align: center;
+  padding: 1.25rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.avatar, .avatar-fallback {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  margin: 0 auto 0.75rem;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.member-card h3 { margin: 0.25rem 0; font-size: 1rem; }
+.member-card .affiliation { color: var(--color-muted); font-size: 0.9rem; margin: 0.25rem 0; }
+.member-card .email a { font-size: 0.85rem; }
+
+@media (max-width: 700px) {
+  .member-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
