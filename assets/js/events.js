@@ -25,13 +25,32 @@ export function renderEvents(events, container, today = new Date().toISOString()
     : '<p class="empty-state">No events yet.</p>';
 }
 
-if (typeof document !== 'undefined' && document.getElementById('events-list')) {
-  initNav('events');
-  const container = document.getElementById('events-list');
-  fetchJSON('data/events.json')
-    .then((events) => renderEvents(events, container))
-    .catch((err) => {
-      container.innerHTML = '<p class="error-state">Couldn\'t load event data.</p>';
-      console.error(err);
-    });
+export function renderEventsTeaser(events, container, today = new Date().toISOString().slice(0, 10)) {
+  const sorted = sortEventsByDateDesc(events).slice(0, 3);
+  container.innerHTML = sorted.length
+    ? `<ul class="event-list">${sorted.map((e) => renderEventItem(e, today)).join('')}</ul><p><a href="events.html">See all events &rarr;</a></p>`
+    : '<p class="empty-state">No events yet.</p>';
+}
+
+if (typeof document !== 'undefined') {
+  const eventsList = document.getElementById('events-list');
+  if (eventsList) {
+    initNav('events');
+    fetchJSON('data/events.json')
+      .then((events) => renderEvents(events, eventsList))
+      .catch((err) => {
+        eventsList.innerHTML = '<p class="error-state">Couldn\'t load event data.</p>';
+        console.error(err);
+      });
+  }
+
+  const eventsTeaser = document.getElementById('events-teaser');
+  if (eventsTeaser) {
+    fetchJSON('data/events.json')
+      .then((events) => renderEventsTeaser(events, eventsTeaser))
+      .catch((err) => {
+        eventsTeaser.innerHTML = '<p class="error-state">Couldn\'t load event data.</p>';
+        console.error(err);
+      });
+  }
 }

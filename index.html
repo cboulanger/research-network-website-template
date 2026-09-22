@@ -14,42 +14,31 @@
       <p>Approved as a Working Group of the Research Committee on Sociology of Law (RCSL) at the Board meeting in Bangor, Wales, 4 September 2024.</p>
     </section>
 
-    <section>
-      <h2>About the Working Group</h2>
-      <p>The Working Group brings together scholars researching the intellectual, institutional, and biographical history of the sociology of law as a field.</p>
-      <p><a href="#" target="_blank" rel="noopener">Board meeting presentation</a> &middot; <a href="#" target="_blank" rel="noopener">Roundtable minutes</a></p>
-    </section>
-
-    <section>
-      <h2>Contact</h2>
-      <p>Chair: Christian Boulanger, Max Planck Institute for Legal History and Legal Theory<br>
-      <a href="mailto:boulanger@lhlt.mpg.de">boulanger@lhlt.mpg.de</a></p>
-    </section>
-
-    <section>
-      <h2>Membership &amp; mailing list</h2>
-      <p>To join the mailing list, send a blank email to the list's subscribe address, or use the
-      <a href="#" target="_blank" rel="noopener">listinfo page</a>. Unsubscribing from the list is treated as
-      leaving the Working Group. Formal membership in the Working Group requires RCSL membership.</p>
-    </section>
-
-    <section>
-      <h2>Meetings</h2>
-      <p>See the <a href="events.html">Events page</a> for the full meeting history and the next planned gathering.</p>
-    </section>
-
-    <section>
-      <h2>News</h2>
-      <div id="news-teaser"></div>
-    </section>
+    <div class="landing-columns">
+      <div class="landing-box doc-content" id="about-box"></div>
+      <div class="landing-sidebar">
+        <div class="landing-box">
+          <h2>News</h2>
+          <div id="news-teaser"></div>
+        </div>
+        <div class="landing-box">
+          <h2>Events</h2>
+          <div id="events-teaser"></div>
+        </div>
+      </div>
+    </div>
   </main>
   <footer>
     <p><a href="members.html">Members</a> &middot; <a href="projects.html">Projects</a> &middot; <a href="events.html">Events</a> &middot; <a href="news.html">News</a></p>
   </footer>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
   <script type="module">
-    import { initNav } from './assets/js/shared.js';
+    import { initNav, renderPageDoc } from './assets/js/shared.js';
     initNav('home');
+    const aboutBox = document.getElementById('about-box');
+    if (aboutBox) renderPageDoc('about.md', aboutBox);
   </script>
   <script type="module" src="assets/js/news.js"></script>
+  <script type="module" src="assets/js/events.js"></script>
 </body>
 </html>

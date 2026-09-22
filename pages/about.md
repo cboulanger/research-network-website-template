@@ -1,15 +1,26 @@
-# How the Working Group Got Started
+# About the Working Group
 
-This is placeholder content for the RCSL Working Group "Histories of the
-Sociology of Law" — a proof-of-concept page demonstrating the Pages content
-viewer. Real content should replace this file before launch.
+The Working Group brings together scholars researching the intellectual,
+institutional, and biographical history of the sociology of law as a
+field. It was approved as a Working Group of the Research Committee on
+Sociology of Law (RCSL) at the Board meeting in Bangor, Wales, on 4
+September 2024.
 
-## Markdown features
+<a href="#" target="_blank" rel="noopener">Board meeting presentation</a> &middot; <a href="#" target="_blank" rel="noopener">Roundtable minutes</a>
 
-This page is rendered from **Markdown** via [marked](https://marked.js.org/),
-so it supports:
+## Contact
 
-- Headings
-- **Bold** and *italic* text
-- [Links](https://gitlab.gwdg.de/rcsl-wg-histories/website)
-- Lists like this one
+Chair: Christian Boulanger, Max Planck Institute for Legal History and Legal Theory<br>
+[boulanger@lhlt.mpg.de](mailto:boulanger@lhlt.mpg.de)
+
+## Membership & mailing list
+
+To join the mailing list, send a blank email to the list's subscribe
+address, or use the <a href="#" target="_blank" rel="noopener">listinfo page</a>. Unsubscribing from the list is
+treated as leaving the Working Group. Formal membership in the Working
+Group requires RCSL membership.
+
+## Meetings
+
+See the [Events page](events.html) for the full meeting history and the
+next planned gathering.

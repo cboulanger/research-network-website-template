@@ -32,6 +32,36 @@ export async function fetchJSON(url) {
   return res.json();
 }
 
+const DOC_FILENAME_PATTERN = /^[A-Za-z0-9_-]+\.(md|html)$/;
+
+export function isValidDocFilename(name) {
+  return typeof name === 'string' && DOC_FILENAME_PATTERN.test(name);
+}
+
+export function getDocType(name) {
+  if (!isValidDocFilename(name)) return null;
+  return name.endsWith('.md') ? 'markdown' : 'html';
+}
+
+export async function renderPageDoc(filename, container) {
+  if (!isValidDocFilename(filename)) {
+    container.innerHTML = '<p class="error-state">No page specified.</p>';
+    return false;
+  }
+  try {
+    const res = await fetch(`pages/${filename}`);
+    if (!res.ok) throw new Error(`Failed to load pages/${filename}: ${res.status}`);
+    const text = await res.text();
+    const type = getDocType(filename);
+    container.innerHTML = type === 'markdown' ? marked.parse(text) : text;
+    return true;
+  } catch (err) {
+    container.innerHTML = '<p class="error-state">Couldn\'t load this page.</p>';
+    console.error(err);
+    return false;
+  }
+}
+
 const NAV_LINKS = [
   { href: 'index.html', label: 'Home', page: 'home' },
   { href: 'members.html', label: 'Members', page: 'members' },

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sortEventsByDateDesc, isUpcoming, renderEventItem } from '../assets/js/events.js';
+import { sortEventsByDateDesc, isUpcoming, renderEventItem, renderEventsTeaser } from '../assets/js/events.js';
 
 const events = [
   { date: '2024-09-04', title: 'Bangor roundtable' },
@@ -36,4 +36,24 @@ test('renderEventItem adds target=_blank only for external links', () => {
   );
   assert.match(external, /target="_blank" rel="noopener"/);
   assert.doesNotMatch(internal, /target="_blank"/);
+});
+
+test('renderEventsTeaser shows only the 3 most recent items plus a "See all events" link', () => {
+  const fourEvents = [
+    ...events,
+    { date: '2020-01-01', title: 'Ancient meeting' },
+  ];
+  const container = { innerHTML: '' };
+  renderEventsTeaser(fourEvents, container, '2026-09-22');
+  const order = [...container.innerHTML.matchAll(/class="event-date">([^<]+)</g)].map((m) => m[1]);
+  assert.deepEqual(order, ['2026-11-10', '2024-09-04', '2023-01-15']);
+  assert.match(container.innerHTML, /See all events/);
+  assert.match(container.innerHTML, /href="events.html"/);
+});
+
+test('renderEventsTeaser shows the empty state for an empty list, with no "See all events" link', () => {
+  const container = { innerHTML: '' };
+  renderEventsTeaser([], container, '2026-09-22');
+  assert.match(container.innerHTML, /No events yet\./);
+  assert.doesNotMatch(container.innerHTML, /See all events/);
 });
