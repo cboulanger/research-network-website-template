@@ -198,3 +198,10 @@ footer {
 #page-content { line-height: 1.6; }
 #page-content h1, #page-content h2, #page-content h3 { margin-top: 1.5rem; }
 #page-content img { max-width: 100%; }
+
+#page-back-link:empty { display: none; }
+#page-back-link {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
