@@ -7,10 +7,10 @@
 
 A static, no-backend website for the RCSL Working Group "Histories of the
 Sociology of Law," hosted on GitLab Pages under the private GitLab group
-`rcsl-wg-histories` (gitlab.gwdg.de). The site has three pages — a landing
-page, a Members page, and a Projects page — and is rendered client-side from
-two hand-maintained JSON data files. There is no server, no database, and no
-build step.
+`rcsl-wg-histories` (gitlab.gwdg.de). The site has four pages — a landing
+page, a Members page, a Projects page, and an Events page — and is rendered
+client-side from three hand-maintained JSON data files. There is no server,
+no database, and no build step.
 
 ## Goals
 
@@ -19,8 +19,10 @@ build step.
 - Show the group's members and their affiliations.
 - Show the group's projects as an explorable network connecting projects to
   the scholars working on them.
-- Stay maintainable by non-developers: adding a member or project is editing
-  a JSON file, no code changes required.
+- Show the group's meeting history and keep the next upcoming meeting easy
+  to find.
+- Stay maintainable by non-developers: adding a member, project, or event is
+  editing a JSON file, no code changes required.
 
 ## Non-goals
 
@@ -49,17 +51,21 @@ server-side rendering step of any kind.
 ├── index.html                 # landing page
 ├── members.html
 ├── projects.html
+├── events.html
 ├── data/
 │   ├── members.json
 │   ├── projects.json
+│   ├── events.json
 │   └── schema/
 │       ├── members.schema.json
-│       └── projects.schema.json
+│       ├── projects.schema.json
+│       └── events.schema.json
 ├── assets/
 │   ├── css/style.css
 │   ├── js/
 │   │   ├── members.js         # renders members.html
 │   │   ├── projects-graph.js  # d3-force graph, list-view toggle, filter, modal
+│   │   ├── events.js          # renders events.html
 │   │   └── shared.js          # nav, initials-avatar fallback, etc.
 │   └── img/                   # local static assets only (logo, favicon) —
 │                               # member/project images are hotlinked, not stored here
@@ -116,12 +122,31 @@ server-side rendering step of any kind.
 - `participants` is an array of member emails, resolved client-side against
   `members.json`.
 
+### `data/events.json`
+
+```json
+[
+  {
+    "date": "2026-09-04",
+    "title": "WG roundtable, Bangor, Wales",
+    "url": "https://..."
+  }
+]
+```
+
+- `date`, `title` are required. `date` is an ISO `YYYY-MM-DD` string.
+- `url` is optional; when present the event title links to it.
+- The array is rendered **sorted by date descending** (newest first), so the
+  most recent or next-upcoming meeting is always at the top — no separate
+  "next meeting" field is needed. Whether an entry is past or upcoming is
+  determined at render time by comparing `date` to today.
+
 ### CI data validation
 
 `.gitlab-ci.yml`'s `validate` stage runs a JSON Schema check (e.g.
 `npx ajv-cli validate`, no persisted Node dependency in the repo) against
-both files on every push. A schema failure fails the pipeline and blocks the
-Pages deploy. This is the safety net for the manual-edit-via-merge-request
+all three data files on every push. A schema failure fails the pipeline and
+blocks the Pages deploy. This is the safety net for the manual-edit-via-merge-request
 data workflow — there is no other data entry path.
 
 ## Pages
@@ -131,8 +156,8 @@ data workflow — there is no other data entry path.
 Static content adapted directly from the group's current HedgeDoc pad — no
 new content invented. Sections, in order:
 
-1. Header/nav (site title left; Home / Members / Projects right; active page
-   underlined in the accent color).
+1. Header/nav (site title left; Home / Members / Projects / Events right;
+   active page underlined in the accent color).
 2. Hero: "RCSL Working Group 'Histories of the Sociology of Law'" + status
    line (approved at the RCSL Board meeting, Bangor, Wales, 4 September
    2024).
@@ -143,9 +168,12 @@ new content invented. Sections, in order:
    subscribe-via-listinfo-page instructions, the note that unsubscribing
    is treated as leaving the WG, and the note that RCSL membership is
    required for *formal* WG membership.
-6. "Meetings" — chronological list of past meetings with dates, and the next
-   planned meeting.
-7. Footer — links to Members and Projects pages.
+6. "Meetings" — a short pointer to the Events page for the full history and
+   the next planned meeting (e.g. "See the Events page for past meetings and
+   the next gathering."), rather than listing dates on the landing page
+   itself. The events data lives only in `events.json`, so this stays
+   accurate without editing `index.html`.
+7. Footer — links to Members, Projects, and Events pages.
 
 ### Members page (`members.html`)
 
@@ -159,6 +187,16 @@ columns / single column on narrow viewports.
 Defaults to the network graph view, with a toggle to a plain accessible list
 view. See "Projects graph" below for the graph's behavior, and "Accessible
 list view" for its alternative.
+
+### Events page (`events.html`)
+
+A simple reverse-chronological list rendered from `events.json`, newest
+first — so the next planned meeting (or, once it's passed, the most recent
+one) is always the top entry. Each entry: date, title (linking to `url` if
+present). No graphics, no pagination; a plain, fast-scanning list is
+sufficient for a working group's meeting cadence. This is the single source
+of truth for meeting history — the landing page only links here rather than
+duplicating the list.
 
 ## Projects graph
 
@@ -233,9 +271,9 @@ experience on a phone.
 - **`participants` email with no matching member record:** logged to the
   console as a data-consistency warning; that node is simply not rendered.
   Does not crash the graph.
-- **Empty `members.json` / `projects.json`:** page renders its normal
-  chrome (nav, headings) with an empty-state message instead of a blank or
-  broken layout.
+- **Empty `members.json` / `projects.json` / `events.json`:** page renders
+  its normal chrome (nav, headings) with an empty-state message instead of a
+  blank or broken layout.
 - **Malformed JSON / fetch failure:** caught; shows a simple "couldn't load
   data" message on that page rather than a blank screen.
 - CI schema validation (above) catches structurally invalid data before it
@@ -246,8 +284,8 @@ experience on a phone.
 
 `.gitlab-ci.yml`, two stages:
 
-1. **`validate`** — JSON Schema check against both data files (see "CI data
-   validation" above). Failing data blocks deploy.
+1. **`validate`** — JSON Schema check against all three data files (see "CI
+   data validation" above). Failing data blocks deploy.
 2. **`pages`** — no build step; copies the repo (excluding
    `.gitlab-ci.yml`, `README.md`, and other dev-only files) into the
    `public/` artifact directory GitLab Pages expects. Runs only on the
@@ -282,10 +320,11 @@ the GitLab API from a local machine.
 
 ## Data update workflow
 
-Adding or editing a member or project means hand-editing `members.json` or
-`projects.json` and opening a merge request (or pushing directly, per the
-maintainer's normal git workflow). CI schema validation (above) is the only
-automated check; there is no admin UI and none is planned.
+Adding or editing a member, project, or event means hand-editing
+`members.json`, `projects.json`, or `events.json` and opening a merge
+request (or pushing directly, per the maintainer's normal git workflow). CI
+schema validation (above) is the only automated check; there is no admin UI
+and none is planned.
 
 ## Testing approach
 
@@ -296,8 +335,9 @@ test suite is not warranted. Verification consists of:
   correctness of the data on every push.
 - **Manual smoke check** after any change: serve the site locally (e.g.
   `python -m http.server`) or open the deployed Pages URL, and check that
-  the landing page, Members page, and Projects page (both graph and list
-  view) render correctly. Documented as a short checklist in the README.
+  the landing page, Members page, Projects page (both graph and list view),
+  and Events page render correctly. Documented as a short checklist in the
+  README.
 
 ## Alternatives considered (Projects graph layout)
 
