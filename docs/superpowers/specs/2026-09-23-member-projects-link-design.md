@@ -52,7 +52,10 @@ link.
   The "Show all" control is a `<button type="button">`.
 - Focusing a member — via the hash or by manually clicking a scholar node —
   applies the focus to **both** views (graph highlight + list filter) and
-  shows the banner. Switching views therefore keeps the focus.
+  shows the banner. Switching views therefore keeps the focus. A manual
+  click also writes `#member=<slug>` via `history.replaceState`, so the URL
+  always reflects the current focus (and a reload keeps it). Focusing also
+  empties the filter box (see section 6).
 - "Show all" clears the focus in both views, hides the banner and tooltip,
   and removes the hash with `history.replaceState` (no new history entry).
 - This also closes an existing gap: previously nothing but the filter box
@@ -64,7 +67,8 @@ link.
   unchanged. Clearing removes `node-dimmed` from all nodes and links.
 - The tooltip (`showScholarLabel`) needs a position when the focus comes
   from the hash rather than a click. It is positioned from the scholar
-  node's `getBoundingClientRect()` (centre-bottom), computed once the force
+  node's `getBoundingClientRect()` (centre-top, matching the tooltip's
+  `translate(-50%, -120%)` placement above a click point), computed once the force
   simulation has settled (`simulation.on('end')`), or immediately when
   `reducedMotion` is on (layout is pre-computed). If graph view is hidden at
   that time, the tooltip is skipped — the banner already names the member.

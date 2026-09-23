@@ -76,3 +76,28 @@ test('build.mjs copies static assets (CSS and client JS) into public/', async (t
   await rm(contentDir, { recursive: true, force: true });
   await rm(publicDir, { recursive: true, force: true });
 });
+
+test('build.mjs links project participants from the members page to the focused projects page', async (t) => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await writeFile(
+    path.join(contentDir, 'data', 'members.json'),
+    JSON.stringify([
+      { firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' },
+      { firstname: 'Solo', lastname: 'Member', affiliation: 'Test Org', email: 'solo@example.org' },
+    ])
+  );
+
+  await runBuild(contentDir, publicDir);
+
+  const membersHTML = await readFile(path.join(publicDir, 'members.html'), 'utf8');
+  assert.equal(membersHTML.match(/projects\.html#member=test-person/g).length, 2);
+  assert.doesNotMatch(membersHTML, /projects\.html#member=solo-member/);
+
+  const projectsHTML = await readFile(path.join(publicDir, 'projects.html'), 'utf8');
+  assert.match(projectsHTML, /id="member-focus-banner"/);
+
+  await rm(contentDir, { recursive: true, force: true });
+  await rm(publicDir, { recursive: true, force: true });
+});

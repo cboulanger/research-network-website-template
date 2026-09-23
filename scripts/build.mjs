@@ -9,7 +9,7 @@ import { escapeHTML } from '../assets/js/shared.js';
 import { isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
 import { renderNewsTeaser, renderNews } from '../assets/js/news.js';
 import { renderEventsTeaser, renderEvents } from '../assets/js/events.js';
-import { renderMembers, renderMemberList } from '../assets/js/members.js';
+import { renderMembers, renderMemberList, participantSlugs } from '../assets/js/members.js';
 import { buildGraphData, renderListView, sanitizeGraphData } from '../assets/js/projects-graph.js';
 
 const PUBLIC_DIR = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public');
@@ -84,11 +84,12 @@ async function buildIndexPage(content) {
 }
 
 async function buildMembersPage(content) {
-  const { site, members } = content;
+  const { site, members, projects } = content;
+  const slugsWithProjects = participantSlugs(projects, members);
   const gridContainer = {};
-  renderMembers(members, gridContainer);
+  renderMembers(members, gridContainer, slugsWithProjects);
   const listContainer = {};
-  renderMemberList(members, listContainer);
+  renderMemberList(members, listContainer, slugsWithProjects);
 
   const mainHTML = `
     <h1>Members</h1>
@@ -193,6 +194,7 @@ async function buildProjectsPage(content) {
       <input type="search" id="project-filter" class="filter-input" placeholder="Filter by scholar or project title" aria-label="Filter projects and scholars">
       <button id="view-toggle" class="view-toggle-btn" type="button">Switch to graph view</button>
     </div>
+    <p id="member-focus-banner" class="member-focus-banner" hidden>Showing projects of <strong id="member-focus-name"></strong> &middot; <button id="member-focus-clear" class="link-button" type="button">Show all</button></p>
     <div id="graph-view" hidden>
       <svg id="graph-svg"></svg>
       <div id="scholar-tooltip" class="scholar-tooltip" hidden></div>
