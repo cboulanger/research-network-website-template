@@ -33,6 +33,12 @@ function renderProjectsLink(member, participantSlugs) {
     : '';
 }
 
+function renderPublicationsLink(member) {
+  return member.orcid
+    ? `<a class="member-publications-link" href="https://orcid.org/${escapeHTML(member.orcid)}" target="_blank" rel="noopener">Publications</a>`
+    : '';
+}
+
 export function renderMemberCard(member, participantSlugs) {
   const initials = getInitials(member.firstname, member.lastname);
   const color = hashColor(member.email);
@@ -44,7 +50,7 @@ export function renderMemberCard(member, participantSlugs) {
   const portrait = member.portrait_url
     ? `<img class="avatar" src="${escapeHTML(member.portrait_url)}" alt="" data-portrait-fallback data-initials="${escapeHTML(initials)}" data-avatar-color="${color}">`
     : `<div class="avatar-fallback" style="background-color:${color}">${escapeHTML(initials)}</div>`;
-  return `<li class="member-card" id="${memberSlug(member)}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p>${renderProjectsLink(member, participantSlugs)}</li>`;
+  return `<li class="member-card" id="${memberSlug(member)}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p>${renderProjectsLink(member, participantSlugs)}${renderPublicationsLink(member)}</li>`;
 }
 
 export function renderMembers(members, container, participantSlugs) {
@@ -62,7 +68,7 @@ export function renderMemberListItem(member, participantSlugs) {
     : `${firstname} ${lastname}`;
   return `<li class="member-list-item" data-search="${escapeHTML(memberSearchText(member))}"><span class="name">${nameHTML}</span>${
     member.affiliation ? `<span class="affiliation">${escapeHTML(member.affiliation)}</span>` : ''
-  }${renderProjectsLink(member, participantSlugs)}</li>`;
+  }${renderProjectsLink(member, participantSlugs)}${renderPublicationsLink(member)}</li>`;
 }
 
 export function renderMemberList(members, container, participantSlugs) {

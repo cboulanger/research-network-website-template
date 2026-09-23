@@ -279,8 +279,12 @@ footer {
   border-top: 1px solid #eee;
 }
 
-.member-projects-link { font-size: 0.9rem; }
-.member-list-item .member-projects-link { margin-left: auto; }
+.member-projects-link,
+.member-publications-link { font-size: 0.9rem; }
+.member-card .member-projects-link + .member-publications-link { margin-left: 0.75rem; }
+/* In the list view, the first link pushes the links to the right edge. */
+.member-list-item .affiliation + a,
+.member-list-item .name + a { margin-left: auto; }
 
 .member-focus-banner {
   margin: 0 0 1rem;

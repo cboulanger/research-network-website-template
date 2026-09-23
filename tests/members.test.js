@@ -107,6 +107,19 @@ test('renderMemberListItem omits the Projects link for members without projects'
   assert.doesNotMatch(renderMemberListItem(sample[0]), /member-projects-link/);
 });
 
+test('renderMemberCard and renderMemberListItem add a Publications link to ORCID when orcid is given', () => {
+  const member = { ...sample[0], orcid: '0000-0001-6928-3246' };
+  const link =
+    /<a class="member-publications-link" href="https:\/\/orcid.org\/0000-0001-6928-3246" target="_blank" rel="noopener">Publications<\/a>/;
+  assert.match(renderMemberCard(member), link);
+  assert.match(renderMemberListItem(member), link);
+});
+
+test('renderMemberCard and renderMemberListItem omit the Publications link without orcid', () => {
+  assert.doesNotMatch(renderMemberCard(sample[0]), /member-publications-link/);
+  assert.doesNotMatch(renderMemberListItem(sample[0]), /member-publications-link/);
+});
+
 test('renderMembers and renderMemberList forward the participant set', () => {
   const grid = {};
   const list = {};
