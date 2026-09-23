@@ -1,19 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getInitials, hashColor, navHTML, isExternalLink } from '../assets/js/shared.js';
+import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, memberSlug, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
-  assert.equal(getInitials('Christian', 'Boulanger'), 'CB');
+  assert.equal(getInitials('Jordan', 'Lee'), 'JL');
 });
 
 test('getInitials handles missing names gracefully', () => {
   assert.equal(getInitials('', ''), '');
-  assert.equal(getInitials(undefined, 'Boulanger'), 'B');
+  assert.equal(getInitials(undefined, 'Lee'), 'L');
 });
 
 test('hashColor is deterministic for the same key', () => {
-  const a = hashColor('boulanger@lhlt.mpg.de');
-  const b = hashColor('boulanger@lhlt.mpg.de');
+  const a = hashColor('jordan.lee@example.org');
+  const b = hashColor('jordan.lee@example.org');
   assert.equal(a, b);
 });
 
@@ -35,7 +35,7 @@ test('navHTML has no active class when page does not match any link', () => {
 
 test('navHTML defaults to the fallback banner label when none is given', () => {
   const html = navHTML('members');
-  assert.match(html, /<span class="site-title">RCSL WG Histories<\/span>/);
+  assert.match(html, /<span class="site-title">Site<\/span>/);
 });
 
 test('navHTML uses a custom banner label when provided', () => {
@@ -50,4 +50,62 @@ test('isExternalLink recognizes absolute http(s) URLs', () => {
 
 test('isExternalLink treats relative links as internal', () => {
   assert.equal(isExternalLink('pages.html?doc=about.md'), false);
+});
+
+test('memberSlug builds a lowercase hyphenated slug from first and last name', () => {
+  assert.equal(memberSlug({ firstname: 'Ada', lastname: 'Adler' }), 'ada-adler');
+});
+
+test('memberSlug strips characters that are not letters or digits', () => {
+  assert.equal(memberSlug({ firstname: "O'Brien", lastname: 'Smith-Jones' }), 'o-brien-smith-jones');
+});
+
+test('textMatchesQuery treats an empty query as matching everything', () => {
+  assert.equal(textMatchesQuery('', 'ada adler'), true);
+  assert.equal(textMatchesQuery('   ', 'ada adler'), true);
+});
+
+test('textMatchesQuery matches a substring case-insensitively', () => {
+  assert.equal(textMatchesQuery('ADLER', 'ada adler institute'), true);
+  assert.equal(textMatchesQuery('nomatch', 'ada adler institute'), false);
+});
+
+test('skipLinkHTML links to #main-content', () => {
+  assert.match(skipLinkHTML(), /href="#main-content"/);
+  assert.match(skipLinkHTML(), /class="skip-link"/);
+});
+
+test('isValidDocFilename accepts simple .md and .html filenames', () => {
+  assert.equal(isValidDocFilename('about.md'), true);
+  assert.equal(isValidDocFilename('example.html'), true);
+  assert.equal(isValidDocFilename('my-page_v2.md'), true);
+});
+
+test('isValidDocFilename rejects path traversal and unsafe characters', () => {
+  assert.equal(isValidDocFilename('../content/members.json'), false);
+  assert.equal(isValidDocFilename('about.md/../evil'), false);
+  assert.equal(isValidDocFilename('a b.md'), false);
+  assert.equal(isValidDocFilename('script.js'), false);
+});
+
+test('isValidDocFilename rejects non-string or empty input', () => {
+  assert.equal(isValidDocFilename(''), false);
+  assert.equal(isValidDocFilename(null), false);
+  assert.equal(isValidDocFilename(undefined), false);
+});
+
+test('getDocType returns markdown or html for valid filenames', () => {
+  assert.equal(getDocType('about.md'), 'markdown');
+  assert.equal(getDocType('example.html'), 'html');
+});
+
+test('getDocType returns null for invalid filenames', () => {
+  assert.equal(getDocType('../evil'), null);
+  assert.equal(getDocType('script.js'), null);
+});
+
+test('titleFromFilename strips the extension and title-cases hyphen/underscore-separated words', () => {
+  assert.equal(titleFromFilename('about.md'), 'About');
+  assert.equal(titleFromFilename('example.html'), 'Example');
+  assert.equal(titleFromFilename('my-page_v2.md'), 'My Page V2');
 });

@@ -6,6 +6,7 @@ validate:
   stage: validate
   image: node:22-alpine
   script:
+    - npm install
     - npm run validate
     - npm test
   rules:
@@ -14,10 +15,10 @@ validate:
 
 pages:
   stage: pages
-  image: alpine:latest
+  image: node:22-alpine
   script:
-    - mkdir -p public
-    - cp -r index.html members.html projects.html events.html news.html pages.html assets data pages public/
+    - npm install
+    - npm run build
   artifacts:
     paths:
       - public

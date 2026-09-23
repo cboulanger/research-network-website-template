@@ -1,4 +1,4 @@
-import { fetchJSON, initNav, escapeHTML, isExternalLink } from './shared.js';
+import { escapeHTML, isExternalLink } from './shared.js';
 
 export { isExternalLink };
 
@@ -24,27 +24,4 @@ export function renderNewsTeaser(items, container) {
   container.innerHTML = sorted.length
     ? `<ul class="news-list">${sorted.map(renderNewsItem).join('')}</ul><p><a href="news.html">See all news &rarr;</a></p>`
     : '<p class="empty-state">No news yet.</p>';
-}
-
-if (typeof document !== 'undefined') {
-  const newsList = document.getElementById('news-list');
-  if (newsList) {
-    initNav('news');
-    fetchJSON('data/news.json')
-      .then((items) => renderNews(items, newsList))
-      .catch((err) => {
-        newsList.innerHTML = '<p class="error-state">Couldn\'t load news.</p>';
-        console.error(err);
-      });
-  }
-
-  const newsTeaser = document.getElementById('news-teaser');
-  if (newsTeaser) {
-    fetchJSON('data/news.json')
-      .then((items) => renderNewsTeaser(items, newsTeaser))
-      .catch((err) => {
-        newsTeaser.innerHTML = '<p class="error-state">Couldn\'t load news.</p>';
-        console.error(err);
-      });
-  }
 }

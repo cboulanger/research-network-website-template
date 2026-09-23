@@ -1,9 +1,17 @@
-import { getInitials, hashColor, fetchJSON, initNav, wirePortraitFallback, escapeHTML } from './shared.js';
+import { escapeHTML, getInitials, hashColor, memberSlug, textMatchesQuery, wirePortraitFallback } from './shared.js';
 
 export function sortMembersByLastname(members) {
   return [...members].sort((a, b) =>
     a.lastname.localeCompare(b.lastname, undefined, { sensitivity: 'base' })
   );
+}
+
+export function memberSearchText(member) {
+  return `${member.firstname} ${member.lastname} ${member.affiliation || ''}`.trim().toLowerCase();
+}
+
+export function memberMatches(query, member) {
+  return textMatchesQuery(query, memberSearchText(member));
 }
 
 export function renderMemberCard(member) {
@@ -17,7 +25,7 @@ export function renderMemberCard(member) {
   const portrait = member.portrait_url
     ? `<img class="avatar" src="${escapeHTML(member.portrait_url)}" alt="" data-portrait-fallback data-initials="${escapeHTML(initials)}" data-avatar-color="${color}">`
     : `<div class="avatar-fallback" style="background-color:${color}">${escapeHTML(initials)}</div>`;
-  return `<li class="member-card" id="${encodeURIComponent(member.email)}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p></li>`;
+  return `<li class="member-card" id="${memberSlug(member)}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p></li>`;
 }
 
 export function renderMembers(members, container) {
@@ -27,21 +35,13 @@ export function renderMembers(members, container) {
     : '<p class="empty-state">No members yet.</p>';
 }
 
-export function memberMatches(query, member) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const name = `${member.firstname} ${member.lastname}`.toLowerCase();
-  const affiliation = (member.affiliation || '').toLowerCase();
-  return name.includes(q) || affiliation.includes(q);
-}
-
 export function renderMemberListItem(member) {
   const firstname = escapeHTML(member.firstname);
   const lastname = escapeHTML(member.lastname);
   const nameHTML = member.url
     ? `<a href="${escapeHTML(member.url)}" target="_blank" rel="noopener">${firstname} ${lastname}</a>`
     : `${firstname} ${lastname}`;
-  return `<li class="member-list-item"><span class="name">${nameHTML}</span>${
+  return `<li class="member-list-item" data-search="${escapeHTML(memberSearchText(member))}"><span class="name">${nameHTML}</span>${
     member.affiliation ? `<span class="affiliation">${escapeHTML(member.affiliation)}</span>` : ''
   }</li>`;
 }
@@ -53,41 +53,36 @@ export function renderMemberList(members, container) {
     : '<p class="empty-state">No members yet.</p>';
 }
 
-function setView(mode) {
-  document.getElementById('members-grid').hidden = mode !== 'grid';
-  document.getElementById('members-list').hidden = mode !== 'list';
-  document.getElementById('member-view-toggle').textContent =
-    mode === 'grid' ? 'Switch to list view' : 'Switch to grid view';
-}
-
 if (typeof document !== 'undefined' && document.getElementById('members-grid')) {
-  initNav('members');
   const gridContainer = document.getElementById('members-grid');
   const listContainer = document.getElementById('members-list');
   const filterInput = document.getElementById('member-filter');
+  const filterEmptyState = document.getElementById('member-filter-empty');
   const toggle = document.getElementById('member-view-toggle');
 
-  fetchJSON('data/members.json')
-    .then((members) => {
-      function render(query) {
-        const filtered = members.filter((m) => memberMatches(query, m));
-        renderMembers(filtered, gridContainer);
-        renderMemberList(filtered, listContainer);
-        wirePortraitFallback(gridContainer);
-      }
-      render('');
+  wirePortraitFallback(gridContainer);
 
-      filterInput.addEventListener('input', (e) => render(e.target.value));
-
-      let mode = window.innerWidth < 700 ? 'list' : 'grid';
-      setView(mode);
-      toggle.addEventListener('click', () => {
-        mode = mode === 'grid' ? 'list' : 'grid';
-        setView(mode);
-      });
-    })
-    .catch((err) => {
-      gridContainer.innerHTML = '<p class="error-state">Couldn\'t load member data.</p>';
-      console.error(err);
+  function applyFilter(query) {
+    const items = document.querySelectorAll('#members-grid [data-search], #members-list [data-search]');
+    let anyVisible = false;
+    items.forEach((el) => {
+      const match = textMatchesQuery(query, el.dataset.search);
+      el.hidden = !match;
+      if (match) anyVisible = true;
     });
+    filterEmptyState.hidden = items.length === 0 || anyVisible;
+  }
+  filterInput.addEventListener('input', (e) => applyFilter(e.target.value));
+
+  function setView(mode) {
+    gridContainer.hidden = mode !== 'grid';
+    listContainer.hidden = mode !== 'list';
+    toggle.textContent = mode === 'grid' ? 'Switch to list view' : 'Switch to grid view';
+  }
+  let mode = window.innerWidth < 700 ? 'list' : 'grid';
+  setView(mode);
+  toggle.addEventListener('click', () => {
+    mode = mode === 'grid' ? 'list' : 'grid';
+    setView(mode);
+  });
 }

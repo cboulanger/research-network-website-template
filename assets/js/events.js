@@ -1,4 +1,4 @@
-import { fetchJSON, initNav, escapeHTML, isExternalLink } from './shared.js';
+import { escapeHTML, isExternalLink } from './shared.js';
 
 export function sortEventsByDateDesc(events) {
   return [...events].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -30,27 +30,4 @@ export function renderEventsTeaser(events, container, today = new Date().toISOSt
   container.innerHTML = sorted.length
     ? `<ul class="event-list">${sorted.map((e) => renderEventItem(e, today)).join('')}</ul><p><a href="events.html">See all events &rarr;</a></p>`
     : '<p class="empty-state">No events yet.</p>';
-}
-
-if (typeof document !== 'undefined') {
-  const eventsList = document.getElementById('events-list');
-  if (eventsList) {
-    initNav('events');
-    fetchJSON('data/events.json')
-      .then((events) => renderEvents(events, eventsList))
-      .catch((err) => {
-        eventsList.innerHTML = '<p class="error-state">Couldn\'t load event data.</p>';
-        console.error(err);
-      });
-  }
-
-  const eventsTeaser = document.getElementById('events-teaser');
-  if (eventsTeaser) {
-    fetchJSON('data/events.json')
-      .then((events) => renderEventsTeaser(events, eventsTeaser))
-      .catch((err) => {
-        eventsTeaser.innerHTML = '<p class="error-state">Couldn\'t load event data.</p>';
-        console.error(err);
-      });
-  }
 }

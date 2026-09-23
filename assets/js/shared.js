@@ -24,12 +24,24 @@ export function isExternalLink(url) {
   return /^https?:\/\//i.test(url);
 }
 
-export async function fetchJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to load ${url}: ${res.status} ${res.statusText}`);
-  }
-  return res.json();
+export function memberSlug(member) {
+  const slugify = (value) =>
+    String(value ?? '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  return `${slugify(member.firstname)}-${slugify(member.lastname)}`;
+}
+
+export function textMatchesQuery(query, searchText) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return searchText.toLowerCase().includes(q);
+}
+
+export function skipLinkHTML() {
+  return '<a href="#main-content" class="skip-link">Skip to main content</a>';
 }
 
 const DOC_FILENAME_PATTERN = /^[A-Za-z0-9_-]+\.(md|html)$/;
@@ -43,23 +55,13 @@ export function getDocType(name) {
   return name.endsWith('.md') ? 'markdown' : 'html';
 }
 
-export async function renderPageDoc(filename, container) {
-  if (!isValidDocFilename(filename)) {
-    container.innerHTML = '<p class="error-state">No page specified.</p>';
-    return false;
-  }
-  try {
-    const res = await fetch(`pages/${filename}`);
-    if (!res.ok) throw new Error(`Failed to load pages/${filename}: ${res.status}`);
-    const text = await res.text();
-    const type = getDocType(filename);
-    container.innerHTML = type === 'markdown' ? marked.parse(text) : text;
-    return true;
-  } catch (err) {
-    container.innerHTML = '<p class="error-state">Couldn\'t load this page.</p>';
-    console.error(err);
-    return false;
-  }
+export function titleFromFilename(name) {
+  const stem = name.replace(/\.(md|html)$/, '');
+  return stem
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 const NAV_LINKS = [
@@ -70,36 +72,11 @@ const NAV_LINKS = [
   { href: 'news.html', label: 'News', page: 'news' },
 ];
 
-const DEFAULT_SITE_CONFIG = {
-  bannerLabel: 'RCSL WG Histories',
-  title: 'RCSL WG Histories',
-  subtitle: '',
-};
-
-let siteConfigPromise = null;
-
-export function loadSiteConfig() {
-  if (!siteConfigPromise) {
-    siteConfigPromise = fetchJSON('data/site.json').catch((err) => {
-      console.error(err);
-      return DEFAULT_SITE_CONFIG;
-    });
-  }
-  return siteConfigPromise;
-}
-
-export function navHTML(activePage, bannerLabel = DEFAULT_SITE_CONFIG.bannerLabel) {
+export function navHTML(activePage, bannerLabel = 'Site') {
   const items = NAV_LINKS.map(
     (l) => `<a href="${l.href}"${l.page === activePage ? ' class="active"' : ''}>${l.label}</a>`
   ).join('');
   return `<nav class="site-nav"><span class="site-title">${escapeHTML(bannerLabel)}</span><div class="nav-links">${items}</div></nav>`;
-}
-
-export async function initNav(activePage) {
-  const mount = document.getElementById('nav');
-  if (!mount) return;
-  const config = await loadSiteConfig();
-  mount.outerHTML = navHTML(activePage, config.bannerLabel);
 }
 
 export function wirePortraitFallback(root = document) {

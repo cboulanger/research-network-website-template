@@ -7,6 +7,8 @@
   "properties": {
     "bannerLabel": { "type": "string", "minLength": 1 },
     "title": { "type": "string", "minLength": 1 },
-    "subtitle": { "type": "string", "minLength": 1 }
+    "subtitle": { "type": "string", "minLength": 1 },
+    "favicon": { "type": "string", "minLength": 1 },
+    "logo": { "type": "string", "minLength": 1 }
   }
 }

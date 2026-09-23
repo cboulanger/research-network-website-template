@@ -1,4 +1,4 @@
-import { fetchJSON, getInitials, hashColor, initNav, escapeHTML } from './shared.js';
+import { escapeHTML, getInitials, hashColor, memberSlug } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberByEmail = new Map(members.map((m) => [m.email, m]));
@@ -26,6 +26,35 @@ export function buildGraphData(projects, members) {
   return { nodes, links };
 }
 
+export function sanitizeGraphData(nodes, links) {
+  const idMap = new Map();
+  const sanitizedNodes = nodes.map((n) => {
+    if (n.type === 'project') {
+      const { id, title, subtitle, description, url, image_url } = n.data;
+      idMap.set(n.id, n.id);
+      return { id: n.id, type: 'project', data: { id, title, subtitle, description, url, image_url } };
+    }
+    const { firstname, lastname, affiliation, portrait_url, url } = n.data;
+    const slug = memberSlug(n.data);
+    const sanitizedId = `scholar:${slug}`;
+    idMap.set(n.id, sanitizedId);
+    return {
+      id: sanitizedId,
+      type: 'scholar',
+      data: { firstname, lastname, affiliation, portrait_url, url, slug },
+    };
+  });
+  const sanitizedLinks = links.map((l) => {
+    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+    return {
+      source: idMap.get(sourceId) ?? sourceId,
+      target: idMap.get(targetId) ?? targetId,
+    };
+  });
+  return { nodes: sanitizedNodes, links: sanitizedLinks };
+}
+
 export function filterMatches(query, node) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -44,12 +73,12 @@ export function buildProjectListItems(projects, members) {
       .filter(Boolean)
       .map((m) => ({
         name: m.affiliation ? `${m.firstname} ${m.lastname} (${m.affiliation})` : `${m.firstname} ${m.lastname}`,
-        email: m.email,
+        slug: memberSlug(m),
       })),
   }));
 }
 
-function renderListView(projects, members, container) {
+export function renderListView(projects, members, container) {
   const items = buildProjectListItems(projects, members);
   container.innerHTML = items.length
     ? items
@@ -59,13 +88,35 @@ function renderListView(projects, members, container) {
             ${p.subtitle ? `<p class="subtitle">${escapeHTML(p.subtitle)}</p>` : ''}
             ${p.description ? `<p>${escapeHTML(p.description)}</p>` : ''}
             <p class="participants">${p.participantNames
-              .map((s) => `<a href="members.html#${encodeURIComponent(s.email)}">${escapeHTML(s.name)}</a>`)
+              .map((s) => `<a href="members.html#${s.slug}">${escapeHTML(s.name)}</a>`)
               .join(', ')}</p>
             ${p.url ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
           </li>`
         )
         .join('')
     : '<li class="empty-state">No projects yet.</li>';
+}
+
+let lastFocusedBeforeModal = null;
+
+function handleModalKeydown(event) {
+  const modal = document.getElementById('project-modal');
+  if (event.key === 'Escape') {
+    closeModal();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = modal.querySelectorAll('button, a[href]');
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function openModal(project) {
@@ -90,11 +141,18 @@ function openModal(project) {
     link.hidden = true;
   }
 
+  lastFocusedBeforeModal = document.activeElement;
   modal.hidden = false;
+  document.getElementById('modal-close').focus();
+  document.addEventListener('keydown', handleModalKeydown);
 }
 
 function closeModal() {
   document.getElementById('project-modal').hidden = true;
+  document.removeEventListener('keydown', handleModalKeydown);
+  if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+    lastFocusedBeforeModal.focus();
+  }
 }
 
 function showScholarLabel(member, x, y) {
@@ -137,7 +195,7 @@ function applyFilter(query, nodes, nodeSel, linkSel) {
   linkSel.classed('node-dimmed', (l) => !(matching.has(l.source.id) && matching.has(l.target.id)));
 }
 
-function renderGraphView(nodes, links, svg) {
+function renderGraphView(nodes, links, svg, { reducedMotion = false } = {}) {
   const width = svg.clientWidth || 900;
   const height = 600;
   const d3svg = d3.select(svg).attr('viewBox', [0, 0, width, height]);
@@ -164,6 +222,11 @@ function renderGraphView(nodes, links, svg) {
     .force('link', d3.forceLink(links).id((d) => d.id).distance(110))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collide', d3.forceCollide(90));
+
+  if (reducedMotion) {
+    simulation.stop();
+    for (let i = 0; i < 300; i += 1) simulation.tick();
+  }
 
   const link = zoomLayer.append('g').attr('stroke', '#ccc').selectAll('line').data(links).join('line');
 
@@ -215,7 +278,7 @@ function renderGraphView(nodes, links, svg) {
       g.style('cursor', 'pointer').on('click', () => openModal(d.data));
     } else {
       const initials = getInitials(d.data.firstname, d.data.lastname);
-      const color = hashColor(d.data.email);
+      const color = hashColor(d.data.slug);
       g.append('circle').attr('r', 26).attr('fill', color);
       const initialsText = () =>
         g.append('text').attr('text-anchor', 'middle').attr('dy', 4).attr('fill', '#fff').text(initials);
@@ -250,6 +313,15 @@ function renderGraphView(nodes, links, svg) {
     node.attr('transform', (d) => `translate(${d.x},${d.y})`);
   });
 
+  if (reducedMotion) {
+    link
+      .attr('x1', (d) => d.source.x)
+      .attr('y1', (d) => d.source.y)
+      .attr('x2', (d) => d.target.x)
+      .attr('y2', (d) => d.target.y);
+    node.attr('transform', (d) => `translate(${d.x},${d.y})`);
+  }
+
   return { node, link };
 }
 
@@ -261,30 +333,25 @@ function setView(mode) {
 }
 
 if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
-  initNav('projects');
+  fetch('assets/projects-graph-data.json')
+    .then((res) => {
+      if (!res.ok) throw new Error(`Failed to load graph data: ${res.status}`);
+      return res.json();
+    })
+    .then(({ nodes, links }) => {
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'), { reducedMotion });
 
-  Promise.all([fetchJSON('data/projects.json'), fetchJSON('data/members.json')])
-    .then(([projects, members]) => {
-      renderListView(projects, members, document.getElementById('project-list'));
+      document.getElementById('project-filter').addEventListener('input', (e) => {
+        applyFilter(e.target.value, nodes, node, link);
+      });
 
-      const { nodes, links } = buildGraphData(projects, members);
+      document.getElementById('modal-close').addEventListener('click', closeModal);
+      document.getElementById('project-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'project-modal') closeModal();
+      });
 
-      if (projects.length === 0) {
-        document.getElementById('graph-view').innerHTML = '<p class="empty-state">No projects yet.</p>';
-      } else {
-        const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'));
-
-        document.getElementById('project-filter').addEventListener('input', (e) => {
-          applyFilter(e.target.value, nodes, node, link);
-        });
-
-        document.getElementById('modal-close').addEventListener('click', closeModal);
-        document.getElementById('project-modal').addEventListener('click', (e) => {
-          if (e.target.id === 'project-modal') closeModal();
-        });
-
-        document.addEventListener('click', hideScholarLabel);
-      }
+      document.addEventListener('click', hideScholarLabel);
 
       const toggle = document.getElementById('view-toggle');
       let mode = window.innerWidth < 700 ? 'list' : 'graph';
@@ -295,7 +362,8 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
       });
     })
     .catch((err) => {
-      document.getElementById('graph-view').innerHTML = '<p class="error-state">Couldn\'t load project data.</p>';
+      // The static list view (already in the page) remains the fallback —
+      // nothing to replace it with; just log for diagnosis.
       console.error(err);
     });
 }
