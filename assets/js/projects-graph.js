@@ -262,19 +262,10 @@ function renderGraphView(nodes, links, svg, { reducedMotion = false } = {}) {
       const label = d.data.title.length > 24 ? d.data.title.slice(0, 23) + '…' : d.data.title;
       g.append('text')
         .attr('text-anchor', 'middle')
-        .attr('y', -6)
+        .attr('y', 4)
         .attr('clip-path', 'url(#project-box-clip)')
         .text(label);
-      const subtitleLabel = d.data.subtitle && d.data.subtitle.length > 34
-        ? d.data.subtitle.slice(0, 33) + '…'
-        : (d.data.subtitle || '');
       g.append('title').text(d.data.subtitle ? `${d.data.title}\n${d.data.subtitle}` : d.data.title);
-      g.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('y', 12)
-        .attr('font-size', 10)
-        .attr('clip-path', 'url(#project-box-clip)')
-        .text(subtitleLabel);
       g.style('cursor', 'pointer').on('click', () => openModal(d.data));
     } else {
       const initials = getInitials(d.data.firstname, d.data.lastname);
