@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Site",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bannerLabel", "title", "subtitle"],
+  "properties": {
+    "bannerLabel": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "subtitle": { "type": "string", "minLength": 1 }
+  }
+}

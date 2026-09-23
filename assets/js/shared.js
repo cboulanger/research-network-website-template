@@ -70,16 +70,36 @@ const NAV_LINKS = [
   { href: 'news.html', label: 'News', page: 'news' },
 ];
 
-export function navHTML(activePage) {
+const DEFAULT_SITE_CONFIG = {
+  bannerLabel: 'RCSL WG Histories',
+  title: 'RCSL WG Histories',
+  subtitle: '',
+};
+
+let siteConfigPromise = null;
+
+export function loadSiteConfig() {
+  if (!siteConfigPromise) {
+    siteConfigPromise = fetchJSON('data/site.json').catch((err) => {
+      console.error(err);
+      return DEFAULT_SITE_CONFIG;
+    });
+  }
+  return siteConfigPromise;
+}
+
+export function navHTML(activePage, bannerLabel = DEFAULT_SITE_CONFIG.bannerLabel) {
   const items = NAV_LINKS.map(
     (l) => `<a href="${l.href}"${l.page === activePage ? ' class="active"' : ''}>${l.label}</a>`
   ).join('');
-  return `<nav class="site-nav"><span class="site-title">RCSL WG Histories</span><div class="nav-links">${items}</div></nav>`;
+  return `<nav class="site-nav"><span class="site-title">${escapeHTML(bannerLabel)}</span><div class="nav-links">${items}</div></nav>`;
 }
 
-export function initNav(activePage) {
+export async function initNav(activePage) {
   const mount = document.getElementById('nav');
-  if (mount) mount.outerHTML = navHTML(activePage);
+  if (!mount) return;
+  const config = await loadSiteConfig();
+  mount.outerHTML = navHTML(activePage, config.bannerLabel);
 }
 
 export function wirePortraitFallback(root = document) {

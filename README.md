@@ -34,6 +34,9 @@ file in `data/` and opening a merge request. Each file must validate
 against its schema in `data/schema/` (`npm run validate` checks this
 locally; CI enforces it on every push).
 
+- `site.json`: site-wide text (nav banner label, landing page title and
+  subtitle) — edit this to reuse the site for a different group without
+  touching any HTML.
 - `members.json`: `email` is the unique id, referenced by
   `projects[].participants`.
 - `projects.json`: `participants` is a list of member emails.
@@ -57,8 +60,11 @@ into `index.html` instead of read from a query param. Editing
 - [ ] Landing page: two-column layout below the hero (About box on the
       left, stacked News/Events boxes on the right); About box renders
       `pages/about.md`; narrow window (<700px) collapses to one column.
-- [ ] Members page: cards sorted by lastname; portraits or initials-avatar
-      fallback render correctly.
+- [ ] Members page, grid view: cards sorted by lastname; portraits or
+      initials-avatar fallback render correctly; no email address shown.
+- [ ] Members page, list view: toggle works both ways; narrow window
+      (<700px) defaults to list view; filter box narrows both views by
+      name or affiliation.
 - [ ] Projects page, graph view: nodes render, drag/pan/zoom work, filter
       dims non-matches, clicking a project opens the modal, clicking a
       scholar highlights their subgraph.

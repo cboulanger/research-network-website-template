@@ -100,11 +100,21 @@ footer {
 
 .member-card h3 { margin: 0.25rem 0; font-size: 1rem; }
 .member-card .affiliation { color: var(--color-muted); font-size: 0.9rem; margin: 0.25rem 0; }
-.member-card .email a { font-size: 0.85rem; }
 
 @media (max-width: 700px) {
   .member-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
+
+.member-list { list-style: none; margin: 0; padding: 0; }
+.member-list-item {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+.member-list-item .affiliation { color: var(--color-muted); font-size: 0.9rem; }
 
 .event-list { list-style: none; margin: 0; padding: 0; }
 .event-item {
@@ -123,9 +133,9 @@ footer {
   border-radius: 999px;
 }
 
-.graph-controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
-#project-filter { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; }
-#view-toggle { padding: 0.5rem 1rem; border: 1px solid var(--color-accent); color: var(--color-accent); background: #fff; border-radius: 6px; cursor: pointer; }
+.list-controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.filter-input { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; }
+.view-toggle-btn { padding: 0.5rem 1rem; border: 1px solid var(--color-accent); color: var(--color-accent); background: #fff; border-radius: 6px; cursor: pointer; }
 
 #graph-view { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
 #graph-svg { width: 100%; height: 600px; display: block; }

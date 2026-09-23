@@ -8,6 +8,7 @@
     "validate:projects": "npx --yes ajv-cli validate -s data/schema/projects.schema.json -d data/projects.json",
     "validate:events": "npx --yes ajv-cli validate -s data/schema/events.schema.json -d data/events.json",
     "validate:news": "npx --yes ajv-cli validate -s data/schema/news.schema.json -d data/news.json",
-    "validate": "npm run validate:members && npm run validate:projects && npm run validate:events && npm run validate:news"
+    "validate:site": "npx --yes ajv-cli validate -s data/schema/site.schema.json -d data/site.json",
+    "validate": "npm run validate:members && npm run validate:projects && npm run validate:events && npm run validate:news && npm run validate:site"
   }
 }

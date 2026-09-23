@@ -33,6 +33,16 @@ test('navHTML has no active class when page does not match any link', () => {
   assert.doesNotMatch(html, /class="active"/);
 });
 
+test('navHTML defaults to the fallback banner label when none is given', () => {
+  const html = navHTML('members');
+  assert.match(html, /<span class="site-title">RCSL WG Histories<\/span>/);
+});
+
+test('navHTML uses a custom banner label when provided', () => {
+  const html = navHTML('members', 'Custom Site Name');
+  assert.match(html, /<span class="site-title">Custom Site Name<\/span>/);
+});
+
 test('isExternalLink recognizes absolute http(s) URLs', () => {
   assert.equal(isExternalLink('https://example.org'), true);
   assert.equal(isExternalLink('http://example.org'), true);
