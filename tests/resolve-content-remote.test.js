@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { materializeRemote } from '../scripts/lib/resolve-content-remote.mjs';
@@ -51,6 +52,32 @@ test('materializeRemote fetches known JSON files, referenced pages, and referenc
   }
 });
 
+test('materializeRemote fetches the optional publications.json only when present', async () => {
+  const files = {
+    'data/site.json': { bannerLabel: 'CLFN', title: 'Test', subtitle: 'Test' },
+    'data/members.json': [],
+    'data/projects.json': [],
+    'data/events.json': [],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+  };
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = fakeFetch(files);
+    const withoutDir = await materializeRemote('https://example.org/content');
+    assert.equal(existsSync(path.join(withoutDir, 'data', 'publications.json')), false);
+    await rm(withoutDir, { recursive: true, force: true });
+
+    globalThis.fetch = fakeFetch({ ...files, 'data/publications.json': { zoteroGroup: '1', style: 'apa' } });
+    const withDir = await materializeRemote('https://example.org/content');
+    const config = JSON.parse(await readFile(path.join(withDir, 'data', 'publications.json'), 'utf8'));
+    assert.equal(config.style, 'apa');
+    await rm(withDir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('materializeRemote throws with the failing URL when a fetch fails', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = fakeFetch({});
@@ -58,5 +85,28 @@ test('materializeRemote throws with the failing URL when a fetch fails', async (
     await assert.rejects(() => materializeRemote('https://example.org/content'), /data\/site\.json/);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('materializeRemote gives up on a stalled server after CONTENT_TIMEOUT_MS', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = process.env.CONTENT_TIMEOUT_MS;
+  // Like a real pending request, keep the event loop alive until aborted
+  // (AbortSignal.timeout's own timer doesn't).
+  globalThis.fetch = (url, { signal }) =>
+    new Promise((resolve, reject) => {
+      const keepAlive = setInterval(() => {}, 1000);
+      signal.addEventListener('abort', () => {
+        clearInterval(keepAlive);
+        reject(signal.reason);
+      });
+    });
+  process.env.CONTENT_TIMEOUT_MS = '50';
+  try {
+    await assert.rejects(() => materializeRemote('https://example.org/content'), /data\/site\.json timed out after 0\.05s/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalTimeout === undefined) delete process.env.CONTENT_TIMEOUT_MS;
+    else process.env.CONTENT_TIMEOUT_MS = originalTimeout;
   }
 });

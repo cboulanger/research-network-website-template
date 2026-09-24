@@ -166,6 +166,8 @@ footer {
 .list-controls { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .filter-input { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; }
 .view-toggle-btn { padding: 0.5rem 1rem; border: 1px solid var(--color-accent); color: var(--color-accent); background: #fff; border-radius: 6px; cursor: pointer; }
+#publication-sort-controls { align-items: center; gap: 0.5rem; }
+.sort-select { padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
 
 #graph-view { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
 #graph-svg { width: 100%; height: 600px; display: block; }
@@ -235,6 +237,17 @@ footer {
 }
 .news-date { color: var(--color-muted); font-variant-numeric: tabular-nums; min-width: 6.5rem; }
 
+.publication-list { list-style: none; margin: 0; padding: 0; }
+.publication-item {
+  padding: 0.75rem 0 0.75rem 1.5em;
+  text-indent: -1.5em;
+  border-bottom: 1px solid #eee;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.publication-item .csl-left-margin,
+.publication-item .csl-right-inline { display: inline; text-indent: 0; }
+
 .doc-content { line-height: 1.6; }
 .doc-content h1, .doc-content h2, .doc-content h3 { margin-top: 1.5rem; }
 .doc-content h1:first-child, .doc-content h2:first-child, .doc-content h3:first-child { margin-top: 0; }
@@ -263,6 +276,7 @@ footer {
   align-items: flex-start;
   gap: 0.15rem;
 }
+.landing-sidebar .publication-item { font-size: 0.9rem; }
 .landing-sidebar .event-date,
 .landing-sidebar .news-date {
   min-width: 0;

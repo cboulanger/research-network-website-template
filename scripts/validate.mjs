@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { resolveContent } from './lib/resolve-content.mjs';
 
 const isWindows = process.platform === 'win32';
-const SCHEMAS =['site', 'members', 'projects', 'events', 'news'];
+const SCHEMAS = ['site', 'members', 'projects', 'events', 'news', 'publications'];
+const OPTIONAL = ['publications'];
 
 async function main() {
   const contentDir = await resolveContent();
@@ -11,6 +13,7 @@ async function main() {
   for (const name of SCHEMAS) {
     const schema = path.join('schema', `${name}.schema.json`);
     const data = path.join(contentDir, 'data', `${name}.json`);
+    if (OPTIONAL.includes(name) && !existsSync(data)) continue;
     const args = ['--yes', 'ajv-cli', 'validate', '-s', schema, '-d', data];
     // On Windows, npx is a .cmd shim that Node can only launch through a
     // shell; quote the arguments so paths with spaces survive.

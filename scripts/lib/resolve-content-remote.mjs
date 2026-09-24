@@ -1,8 +1,10 @@
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fetchWithTimeout, timeoutFromEnv } from './fetch-with-timeout.mjs';
 
 const DATA_FILES = ['site', 'members', 'projects', 'events', 'news'];
+const OPTIONAL_DATA_FILES = ['publications'];
 
 function authHeaders() {
   const username = process.env.CONTENT_USERNAME;
@@ -12,8 +14,12 @@ function authHeaders() {
   return { Authorization: `Basic ${token}` };
 }
 
+function fetchContent(url) {
+  return fetchWithTimeout(url, { headers: authHeaders() }, { timeoutMs: timeoutFromEnv('CONTENT_TIMEOUT_MS', 30000) });
+}
+
 async function fetchOk(url) {
-  const res = await fetch(url, { headers: authHeaders() });
+  const res = await fetchContent(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   return res;
 }
@@ -39,6 +45,14 @@ export async function materializeRemote(baseUrl) {
     const text = await (await fetchOk(`${baseUrl}/data/${name}.json`)).text();
     await writeFile(path.join(dir, 'data', `${name}.json`), text, 'utf8');
     data[name] = JSON.parse(text);
+  }
+
+  for (const name of OPTIONAL_DATA_FILES) {
+    const url = `${baseUrl}/data/${name}.json`;
+    const res = await fetchContent(url);
+    if (res.status === 404) continue;
+    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    await writeFile(path.join(dir, 'data', `${name}.json`), await res.text(), 'utf8');
   }
 
   for (const name of referencedPageNames(data.news, data.events)) {

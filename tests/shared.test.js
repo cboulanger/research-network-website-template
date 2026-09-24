@@ -109,3 +109,8 @@ test('titleFromFilename strips the extension and title-cases hyphen/underscore-s
   assert.equal(titleFromFilename('example.html'), 'Example');
   assert.equal(titleFromFilename('my-page_v2.md'), 'My Page V2');
 });
+
+test('navHTML leaves out excluded pages', () => {
+  assert.match(navHTML('home'), /publications\.html/);
+  assert.doesNotMatch(navHTML('home', 'Site', ['publications']), /publications\.html/);
+});

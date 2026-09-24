@@ -59,6 +59,33 @@ checks this locally; CI enforces it on every push).
   (rewritten at build time to the real static page URL, opens in the same
   tab).
 
+- `publications.json` (optional): turns on the Publications page, nav
+  link, and the landing page's "Latest Publications" box. Without it, none
+  of these appear.
+
+      {
+        "zoteroGroup": "https://www.zotero.org/groups/2211429",
+        "style": "chicago-author-date",
+        "locale": "en-US"
+      }
+
+  At build time, every top-level item of that Zotero group is fetched,
+  already formatted in the given CSL `style` (any id from
+  <https://www.zotero.org/styles>, e.g. `apa`). An item is listed if one
+  of its authors or editors matches a member: last names must be equal,
+  ignoring case, diacritics, and "oe"-style transliterations (Kovač = Kovac,
+  Sundström = Sundstroem); first names must share their first word, where
+  an initial counts (A. = Ada). Set `creatorTypes` (default
+  `["author", "editor"]`) to count other Zotero roles. URLs and DOIs in the
+  citations are linked. The group library must be publicly readable
+  (group settings → "Library Reading: Anyone on the internet"), or set
+  `ZOTERO_API_KEY` (see `.env.example`). If Zotero can't be reached or
+  doesn't answer within 30 s (`ZOTERO_TIMEOUT_MS`), the build fails before
+  writing any output, leaving the previous build (and the deployed site)
+  in place rather than publishing an empty list.
+  `docs/demo/zotero-demo-publications.bib` holds fake entries matching the
+  demo members, for importing into a test group.
+
 Adding a longer write-up (e.g. to link from a news item) means adding a
 `.md` or `.html` file under `content/pages/` — the build turns it into its
 own static page (`content/pages/about.md` → `public/pages/about.html`), no
@@ -111,6 +138,12 @@ the committed generic template) data — see `.env.example` for the remote
       "See all events" link.
 - [ ] News page: sorted newest-first; landing page's News box shows only
       the 3 most recent entries plus a "See all news" link.
+- [ ] Publications page (if `publications.json` exists): members'
+      publications only, newest-first, DOIs/URLs linked; the "Sort by"
+      control switches to author last name A–Z and back (it's hidden with
+      JS disabled, where the list stays newest-first); landing page's
+      "Latest Publications" box below Events shows the 3 newest plus a
+      "See all publications" link.
 - [ ] A `content/pages/` document renders at its own static URL
       (`public/pages/<name>.html`); reaching it from News or Events shows a
       "← All News"/"← All Events" back-link.

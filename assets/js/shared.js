@@ -70,10 +70,11 @@ const NAV_LINKS = [
   { href: 'projects.html', label: 'Projects', page: 'projects' },
   { href: 'events.html', label: 'Events', page: 'events' },
   { href: 'news.html', label: 'News', page: 'news' },
+  { href: 'publications.html', label: 'Publications', page: 'publications' },
 ];
 
-export function navHTML(activePage, bannerLabel = 'Site') {
-  const items = NAV_LINKS.map(
+export function navHTML(activePage, bannerLabel = 'Site', excludePages = []) {
+  const items = NAV_LINKS.filter((l) => !excludePages.includes(l.page)).map(
     (l) => `<a href="${l.href}"${l.page === activePage ? ' class="active"' : ''}>${l.label}</a>`
   ).join('');
   return `<nav class="site-nav"><span class="site-title">${escapeHTML(bannerLabel)}</span><div class="nav-links">${items}</div></nav>`;
