@@ -12,7 +12,7 @@
       "affiliation": { "type": "string", "minLength": 1 },
       "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
       "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
-      "portrait_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "portrait_url": { "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$" },
       "orcid": { "type": "string", "pattern": "^\\d{4}-\\d{4}-\\d{4}-\\d{3}[\\dX]$" }
     }
   }

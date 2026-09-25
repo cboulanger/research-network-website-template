@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fetchWithTimeout, timeoutFromEnv } from './fetch-with-timeout.mjs';
+import { isExternalLink } from '../../assets/js/shared.js';
 
 const DATA_FILES = ['site', 'members', 'projects', 'events', 'news'];
 const OPTIONAL_DATA_FILES = ['publications'];
@@ -60,7 +61,8 @@ export async function materializeRemote(baseUrl) {
     await writeFile(path.join(dir, 'pages', name), text, 'utf8');
   }
 
-  for (const name of [data.site.favicon, data.site.logo].filter(Boolean)) {
+  const portraitImages = data.members.map((m) => m.portrait_url).filter((url) => url && !isExternalLink(url));
+  for (const name of new Set([data.site.favicon, data.site.logo, ...portraitImages].filter(Boolean))) {
     const buffer = Buffer.from(await (await fetchOk(`${baseUrl}/images/${name}`)).arrayBuffer());
     await writeFile(path.join(dir, 'images', name), buffer);
   }

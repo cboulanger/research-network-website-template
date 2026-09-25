@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, memberSlug } from './shared.js';
+import { escapeHTML, getInitials, hashColor, memberSlug, resolvePortraitUrl } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberByEmail = new Map(members.map((m) => [m.email, m]));
@@ -41,7 +41,7 @@ export function sanitizeGraphData(nodes, links) {
     return {
       id: sanitizedId,
       type: 'scholar',
-      data: { firstname, lastname, affiliation, portrait_url, url, slug },
+      data: { firstname, lastname, affiliation, portrait_url: resolvePortraitUrl(portrait_url), url, slug },
     };
   });
   const sanitizedLinks = links.map((l) => {

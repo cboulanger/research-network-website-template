@@ -78,6 +78,30 @@ test('materializeRemote fetches the optional publications.json only when present
   }
 });
 
+test('materializeRemote fetches local portrait images but not external ones', async () => {
+  const files = {
+    'data/site.json': { bannerLabel: 'CLFN', title: 'Test', subtitle: 'Test' },
+    'data/members.json': [
+      { firstname: 'A', lastname: 'Local', affiliation: 'X', email: 'a@example.org', portrait_url: 'local.jpg' },
+      { firstname: 'B', lastname: 'Remote', affiliation: 'X', email: 'b@example.org', portrait_url: 'https://example.net/b.jpg' },
+    ],
+    'data/projects.json': [],
+    'data/events.json': [],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+    'images/local.jpg': 'fake-jpg-bytes',
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch(files);
+  try {
+    const dir = await materializeRemote('https://example.org/content');
+    assert.equal(await readFile(path.join(dir, 'images', 'local.jpg'), 'utf8'), 'fake-jpg-bytes');
+    await rm(dir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('materializeRemote throws with the failing URL when a fetch fails', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = fakeFetch({});

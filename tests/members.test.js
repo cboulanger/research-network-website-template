@@ -29,6 +29,16 @@ test('renderMemberCard falls back to initials avatar when no portrait_url', () =
   assert.match(html, />JL</);
 });
 
+test('renderMemberCard serves a local portrait filename from images/', () => {
+  const html = renderMemberCard({ ...sample[0], portrait_url: 'lee.jpg' });
+  assert.match(html, /<img class="avatar" src="images\/lee\.jpg"/);
+});
+
+test('renderMemberCard keeps an external portrait URL unchanged', () => {
+  const html = renderMemberCard({ ...sample[0], portrait_url: 'https://example.org/lee.jpg' });
+  assert.match(html, /src="https:\/\/example\.org\/lee\.jpg"/);
+});
+
 test('renderMemberCard does not expose the email address', () => {
   const html = renderMemberCard(sample[0]);
   assert.doesNotMatch(html, /mailto:/);

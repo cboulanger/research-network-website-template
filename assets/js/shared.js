@@ -24,6 +24,12 @@ export function isExternalLink(url) {
   return /^https?:\/\//i.test(url);
 }
 
+// A portrait_url that is not an http(s) URL names a file in content/images/.
+export function resolvePortraitUrl(portraitUrl) {
+  if (!portraitUrl) return portraitUrl;
+  return isExternalLink(portraitUrl) ? portraitUrl : `images/${portraitUrl}`;
+}
+
 export function memberSlug(member) {
   const slugify = (value) =>
     String(value ?? '')

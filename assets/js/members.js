@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, memberSlug, textMatchesQuery, wirePortraitFallback } from './shared.js';
+import { escapeHTML, getInitials, hashColor, memberSlug, resolvePortraitUrl, textMatchesQuery, wirePortraitFallback } from './shared.js';
 
 export function sortMembersByLastname(members) {
   return [...members].sort((a, b) =>
@@ -48,7 +48,7 @@ export function renderMemberCard(member, participantSlugs) {
     ? `<a href="${escapeHTML(member.url)}" target="_blank" rel="noopener">${firstname} ${lastname}</a>`
     : `${firstname} ${lastname}`;
   const portrait = member.portrait_url
-    ? `<img class="avatar" src="${escapeHTML(member.portrait_url)}" alt="" data-portrait-fallback data-initials="${escapeHTML(initials)}" data-avatar-color="${color}">`
+    ? `<img class="avatar" src="${escapeHTML(resolvePortraitUrl(member.portrait_url))}" alt="" data-portrait-fallback data-initials="${escapeHTML(initials)}" data-avatar-color="${color}">`
     : `<div class="avatar-fallback" style="background-color:${color}">${escapeHTML(initials)}</div>`;
   return `<li class="member-card" id="${memberSlug(member)}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p>${renderProjectsLink(member, participantSlugs)}${renderPublicationsLink(member)}</li>`;
 }
