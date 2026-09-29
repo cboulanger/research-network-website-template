@@ -1,28 +1,47 @@
 import { mkdir, readFile, writeFile, cp } from 'node:fs/promises';
 import { readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { marked } from 'marked';
 import { resolveContent } from './lib/resolve-content.mjs';
 import { renderPage } from './lib/page-template.mjs';
 import { rewritePagesUrl } from './lib/rewrite-pages-url.mjs';
+import { parseZoteroGroupId, fetchZoteroItems } from './lib/zotero.mjs';
+import { selectMemberPublications } from './lib/publications.mjs';
 import { escapeHTML } from '../assets/js/shared.js';
 import { isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
 import { renderNewsTeaser, renderNews } from '../assets/js/news.js';
 import { renderEventsTeaser, renderEvents } from '../assets/js/events.js';
-import { renderMembers, renderMemberList } from '../assets/js/members.js';
+import { renderPublicationsTeaser, renderPublications } from '../assets/js/publications.js';
+import { renderMembers, renderMemberList, participantSlugs } from '../assets/js/members.js';
 import { buildGraphData, renderListView, sanitizeGraphData } from '../assets/js/projects-graph.js';
 
 const PUBLIC_DIR = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public');
 
 async function loadContent(contentDir) {
   const readJSON = async (name) => JSON.parse(await readFile(path.join(contentDir, 'data', `${name}.json`), 'utf8'));
+  const members = await readJSON('members');
+  const hasPublications = existsSync(path.join(contentDir, 'data', 'publications.json'));
   return {
     site: await readJSON('site'),
-    members: await readJSON('members'),
+    members,
     projects: await readJSON('projects'),
     events: await readJSON('events'),
     news: await readJSON('news'),
+    publications: hasPublications ? await loadPublications(await readJSON('publications'), members) : null,
+    navExclude: hasPublications ? [] : ['publications'],
   };
+}
+
+async function loadPublications(config, members) {
+  const items = await fetchZoteroItems({
+    groupId: parseZoteroGroupId(config.zoteroGroup),
+    style: config.style,
+    locale: config.locale,
+  });
+  const publications = selectMemberPublications(items, members, { creatorTypes: config.creatorTypes });
+  console.log(`Publications: ${publications.length} of ${items.length} Zotero items matched a member`);
+  return publications;
 }
 
 function withRewrittenUrls(items) {
@@ -41,6 +60,16 @@ async function buildIndexPage(content) {
   renderNewsTeaser(withRewrittenUrls(content.news), newsTeaser);
   const eventsTeaser = {};
   renderEventsTeaser(withRewrittenUrls(content.events), eventsTeaser);
+  let publicationsBox = '';
+  if (content.publications) {
+    const publicationsTeaser = {};
+    renderPublicationsTeaser(content.publications, publicationsTeaser);
+    publicationsBox = `
+        <div class="landing-box">
+          <h2>Latest Publications</h2>
+          <div id="publications-teaser">${publicationsTeaser.innerHTML}</div>
+        </div>`;
+  }
 
   const mainHTML = `
     <section class="hero">
@@ -62,12 +91,13 @@ async function buildIndexPage(content) {
         <div class="landing-box">
           <h2>Events</h2>
           <div id="events-teaser">${eventsTeaser.innerHTML}</div>
-        </div>
+        </div>${publicationsBox}
       </div>
     </div>`;
 
+  const publicationsLink = content.publications ? ' &middot; <a href="publications.html">Publications</a>' : '';
   const footerHTML = `<footer>
-    <p><a href="members.html">Members</a> &middot; <a href="projects.html">Projects</a> &middot; <a href="events.html">Events</a> &middot; <a href="news.html">News</a></p>
+    <p><a href="members.html">Members</a> &middot; <a href="projects.html">Projects</a> &middot; <a href="events.html">Events</a> &middot; <a href="news.html">News</a>${publicationsLink}</p>
   </footer>`;
 
   await writeFile(
@@ -77,6 +107,7 @@ async function buildIndexPage(content) {
       activePage: 'home',
       bannerLabel: site.bannerLabel,
       favicon: site.favicon,
+      navExclude: content.navExclude,
       mainHTML,
       footerHTML,
     })
@@ -84,11 +115,12 @@ async function buildIndexPage(content) {
 }
 
 async function buildMembersPage(content) {
-  const { site, members } = content;
+  const { site, members, projects } = content;
+  const slugsWithProjects = participantSlugs(projects, members);
   const gridContainer = {};
-  renderMembers(members, gridContainer);
+  renderMembers(members, gridContainer, slugsWithProjects);
   const listContainer = {};
-  renderMemberList(members, listContainer);
+  renderMemberList(members, listContainer, slugsWithProjects);
 
   const mainHTML = `
     <h1>Members</h1>
@@ -107,6 +139,7 @@ async function buildMembersPage(content) {
       activePage: 'members',
       bannerLabel: site.bannerLabel,
       favicon: site.favicon,
+      navExclude: content.navExclude,
       mainHTML,
       bodyScripts: ['assets/js/members.js'],
     })
@@ -125,6 +158,7 @@ async function buildEventsPage(content) {
       activePage: 'events',
       bannerLabel: site.bannerLabel,
       favicon: site.favicon,
+      navExclude: content.navExclude,
       mainHTML,
     })
   );
@@ -142,7 +176,37 @@ async function buildNewsPage(content) {
       activePage: 'news',
       bannerLabel: site.bannerLabel,
       favicon: site.favicon,
+      navExclude: content.navExclude,
       mainHTML,
+    })
+  );
+}
+
+async function buildPublicationsPage(content) {
+  const { site, publications } = content;
+  if (!publications) return;
+  const listContainer = {};
+  renderPublications(publications, listContainer);
+  const mainHTML = `
+    <h1>Publications</h1>
+    <div id="publication-sort-controls" class="list-controls" hidden>
+      <label for="publication-sort">Sort by</label>
+      <select id="publication-sort" class="sort-select">
+        <option value="date">Date (newest first)</option>
+        <option value="author">Author (A&ndash;Z)</option>
+      </select>
+    </div>
+    <div id="publications-list">${listContainer.innerHTML}</div>`;
+  await writeFile(
+    path.join(PUBLIC_DIR, 'publications.html'),
+    renderPage({
+      title: `Publications — ${site.bannerLabel}`,
+      activePage: 'publications',
+      bannerLabel: site.bannerLabel,
+      favicon: site.favicon,
+      navExclude: content.navExclude,
+      mainHTML,
+      bodyScripts: ['assets/js/publications.js'],
     })
   );
 }
@@ -169,6 +233,7 @@ async function buildPagesDocs(content) {
         activePage: 'pages',
         bannerLabel: site.bannerLabel,
         favicon: site.favicon,
+        navExclude: content.navExclude,
         mainHTML,
         bodyScripts: ['assets/js/page-back-link.js'],
         pathPrefix: '../',
@@ -193,6 +258,7 @@ async function buildProjectsPage(content) {
       <input type="search" id="project-filter" class="filter-input" placeholder="Filter by scholar or project title" aria-label="Filter projects and scholars">
       <button id="view-toggle" class="view-toggle-btn" type="button">Switch to graph view</button>
     </div>
+    <p id="member-focus-banner" class="member-focus-banner" hidden>Showing projects of <strong id="member-focus-name"></strong> &middot; <button id="member-focus-clear" class="link-button" type="button">Show all</button></p>
     <div id="graph-view" hidden>
       <svg id="graph-svg"></svg>
       <div id="scholar-tooltip" class="scholar-tooltip" hidden></div>
@@ -218,6 +284,7 @@ async function buildProjectsPage(content) {
       activePage: 'projects',
       bannerLabel: site.bannerLabel,
       favicon: site.favicon,
+      navExclude: content.navExclude,
       mainHTML,
       vendorScripts: projects.length ? ['assets/vendor/d3.min.js'] : [],
       bodyScripts: projects.length ? ['assets/js/projects-graph.js'] : [],
@@ -234,13 +301,14 @@ async function main() {
   await buildMembersPage(content);
   await buildEventsPage(content);
   await buildNewsPage(content);
+  await buildPublicationsPage(content);
   await buildPagesDocs(content);
   await buildProjectsPage(content);
 
   await cp('assets/css', path.join(PUBLIC_DIR, 'assets', 'css'), { recursive: true });
   await cp(path.join(content.contentDir, 'images'), path.join(PUBLIC_DIR, 'images'), { recursive: true });
   await mkdir(path.join(PUBLIC_DIR, 'assets', 'js'), { recursive: true });
-  for (const file of ['members.js', 'projects-graph.js', 'page-back-link.js', 'shared.js']) {
+  for (const file of ['members.js', 'projects-graph.js', 'page-back-link.js', 'shared.js', 'publications.js']) {
     await cp(path.join('assets', 'js', file), path.join(PUBLIC_DIR, 'assets', 'js', file));
   }
   if (content.projects.length) {

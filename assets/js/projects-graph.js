@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, memberSlug } from './shared.js';
+import { escapeHTML, getInitials, hashColor, memberSlug, resolvePortraitUrl } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberByEmail = new Map(members.map((m) => [m.email, m]));
@@ -41,7 +41,7 @@ export function sanitizeGraphData(nodes, links) {
     return {
       id: sanitizedId,
       type: 'scholar',
-      data: { firstname, lastname, affiliation, portrait_url, url, slug },
+      data: { firstname, lastname, affiliation, portrait_url: resolvePortraitUrl(portrait_url), url, slug },
     };
   });
   const sanitizedLinks = links.map((l) => {
@@ -83,18 +83,48 @@ export function renderListView(projects, members, container) {
   container.innerHTML = items.length
     ? items
         .map(
-          (p) => `<li>
+          (p) => `<li data-participants="${escapeHTML(p.participantNames.map((s) => s.slug).join(' '))}">
             <h3>${escapeHTML(p.title)}</h3>
             ${p.subtitle ? `<p class="subtitle">${escapeHTML(p.subtitle)}</p>` : ''}
             ${p.description ? `<p>${escapeHTML(p.description)}</p>` : ''}
             <p class="participants">${p.participantNames
-              .map((s) => `<a href="members.html#${s.slug}">${escapeHTML(s.name)}</a>`)
+              .map((s) => `<a href="members.html#${s.slug}" data-slug="${s.slug}">${escapeHTML(s.name)}</a>`)
               .join(', ')}</p>
             ${p.url ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
           </li>`
         )
         .join('')
     : '<li class="empty-state">No projects yet.</li>';
+}
+
+export function parseMemberHash(hash) {
+  const match = /^#?member=(.+)$/.exec(hash || '');
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+export function participantsInclude(participantsAttr, slug) {
+  return (participantsAttr || '').split(/\s+/).includes(slug);
+}
+
+export function focusListOnMember(container, slug) {
+  container.querySelectorAll('li[data-participants]').forEach((li) => {
+    li.hidden = !participantsInclude(li.dataset.participants, slug);
+  });
+  container.querySelectorAll('a[data-slug]').forEach((a) => {
+    a.classList.toggle('participant-focused', a.dataset.slug === slug);
+  });
+}
+
+export function clearListFocus(container) {
+  container.querySelectorAll('li[data-participants]').forEach((li) => {
+    li.hidden = false;
+  });
+  container.querySelectorAll('a.participant-focused').forEach((a) => a.classList.remove('participant-focused'));
 }
 
 let lastFocusedBeforeModal = null;
@@ -195,7 +225,7 @@ function applyFilter(query, nodes, nodeSel, linkSel) {
   linkSel.classed('node-dimmed', (l) => !(matching.has(l.source.id) && matching.has(l.target.id)));
 }
 
-function renderGraphView(nodes, links, svg, { reducedMotion = false } = {}) {
+function renderGraphView(nodes, links, svg, { reducedMotion = false, onScholarClick = () => {} } = {}) {
   const width = svg.clientWidth || 900;
   const height = 600;
   const d3svg = d3.select(svg).attr('viewBox', [0, 0, width, height]);
@@ -289,8 +319,7 @@ function renderGraphView(nodes, links, svg, { reducedMotion = false } = {}) {
       }
       g.style('cursor', 'pointer').on('click', (event) => {
         event.stopPropagation();
-        highlight(d, links, node, link);
-        showScholarLabel(d.data, event.clientX, event.clientY);
+        onScholarClick(d, event);
       });
     }
   });
@@ -313,7 +342,17 @@ function renderGraphView(nodes, links, svg, { reducedMotion = false } = {}) {
     node.attr('transform', (d) => `translate(${d.x},${d.y})`);
   }
 
-  return { node, link };
+  // Callbacks waiting for the layout to stop moving, e.g. to anchor a tooltip
+  // to a node's final position. With reduced motion the layout is pre-computed.
+  let settled = reducedMotion;
+  const settledCallbacks = [];
+  simulation.on('end', () => {
+    settled = true;
+    settledCallbacks.splice(0).forEach((cb) => cb());
+  });
+  const whenSettled = (cb) => (settled ? cb() : settledCallbacks.push(cb));
+
+  return { node, link, whenSettled };
 }
 
 function setView(mode) {
@@ -331,11 +370,70 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
     })
     .then(({ nodes, links }) => {
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const { node, link } = renderGraphView(nodes, links, document.getElementById('graph-svg'), { reducedMotion });
+      const filterInput = document.getElementById('project-filter');
+      const listContainer = document.getElementById('project-list');
+      const banner = document.getElementById('member-focus-banner');
+      let focusedSlug = null;
 
-      document.getElementById('project-filter').addEventListener('input', (e) => {
+      // Focus a scholar in both views: dim unrelated graph nodes, hide
+      // unrelated projects in the list, and name the member in the banner.
+      function focusMember(scholarNode) {
+        const { firstname, lastname, slug } = scholarNode.data;
+        filterInput.value = '';
+        highlight(scholarNode, links, node, link);
+        focusListOnMember(listContainer, slug);
+        document.getElementById('member-focus-name').textContent = `${firstname} ${lastname}`;
+        banner.hidden = false;
+        focusedSlug = slug;
+        if (parseMemberHash(location.hash) !== slug) {
+          history.replaceState(null, '', `#member=${encodeURIComponent(slug)}`);
+        }
+      }
+
+      function clearMemberFocus() {
+        if (!focusedSlug) return;
+        focusedSlug = null;
+        applyFilter('', nodes, node, link);
+        clearListFocus(listContainer);
+        banner.hidden = true;
+        hideScholarLabel();
+        if (parseMemberHash(location.hash)) {
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      }
+
+      function focusFromHash() {
+        const slug = parseMemberHash(location.hash);
+        const target = slug && nodes.find((n) => n.id === `scholar:${slug}`);
+        if (!target) {
+          clearMemberFocus();
+          return;
+        }
+        focusMember(target);
+        hideScholarLabel();
+        whenSettled(() => {
+          if (focusedSlug !== slug || document.getElementById('graph-view').hidden) return;
+          const el = node.filter((d) => d.id === target.id).node();
+          const rect = el.getBoundingClientRect();
+          showScholarLabel(target.data, rect.left + rect.width / 2, rect.top);
+        });
+      }
+
+      const { node, link, whenSettled } = renderGraphView(nodes, links, document.getElementById('graph-svg'), {
+        reducedMotion,
+        onScholarClick: (d, event) => {
+          focusMember(d);
+          showScholarLabel(d.data, event.clientX, event.clientY);
+        },
+      });
+
+      filterInput.addEventListener('input', (e) => {
+        clearMemberFocus();
         applyFilter(e.target.value, nodes, node, link);
       });
+
+      document.getElementById('member-focus-clear').addEventListener('click', clearMemberFocus);
+      window.addEventListener('hashchange', focusFromHash);
 
       document.getElementById('modal-close').addEventListener('click', closeModal);
       document.getElementById('project-modal').addEventListener('click', (e) => {
@@ -351,6 +449,8 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
         mode = mode === 'graph' ? 'list' : 'graph';
         setView(mode);
       });
+
+      focusFromHash();
     })
     .catch((err) => {
       // The static list view (already in the page) remains the fallback —

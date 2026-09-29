@@ -1,6 +1,6 @@
 import { navHTML, skipLinkHTML, escapeHTML } from '../../assets/js/shared.js';
 
-export function renderPage({ title, activePage, bannerLabel, favicon, mainHTML, footerHTML = '', bodyScripts = [], vendorScripts = [], pathPrefix = '' }) {
+export function renderPage({ title, activePage, bannerLabel, favicon, mainHTML, footerHTML = '', navExclude = [], bodyScripts = [], vendorScripts = [], pathPrefix = '' }) {
   const faviconTag = favicon ? `<link rel="icon" href="${pathPrefix}images/${escapeHTML(favicon)}">` : '';
   const vendorScriptTags = vendorScripts.map((src) => `<script src="${pathPrefix}${src}"></script>`).join('\n  ');
   const scriptTags = bodyScripts.map((src) => `<script type="module" src="${pathPrefix}${src}"></script>`).join('\n  ');
@@ -15,7 +15,7 @@ export function renderPage({ title, activePage, bannerLabel, favicon, mainHTML, 
 </head>
 <body>
   ${skipLinkHTML()}
-  ${navHTML(activePage, bannerLabel).replace(/href="/g, `href="${pathPrefix}`)}
+  ${navHTML(activePage, bannerLabel, navExclude).replace(/href="/g, `href="${pathPrefix}`)}
   <main id="main-content">
 ${mainHTML}
   </main>

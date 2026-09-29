@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, memberSlug, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
+import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, memberSlug, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
   assert.equal(getInitials('Jordan', 'Lee'), 'JL');
@@ -50,6 +50,14 @@ test('isExternalLink recognizes absolute http(s) URLs', () => {
 
 test('isExternalLink treats relative links as internal', () => {
   assert.equal(isExternalLink('pages.html?doc=about.md'), false);
+});
+
+test('resolvePortraitUrl keeps http(s) URLs unchanged', () => {
+  assert.equal(resolvePortraitUrl('https://example.org/a.jpg'), 'https://example.org/a.jpg');
+});
+
+test('resolvePortraitUrl maps a bare filename into images/', () => {
+  assert.equal(resolvePortraitUrl('murayama.jpg'), 'images/murayama.jpg');
 });
 
 test('memberSlug builds a lowercase hyphenated slug from first and last name', () => {
@@ -108,4 +116,9 @@ test('titleFromFilename strips the extension and title-cases hyphen/underscore-s
   assert.equal(titleFromFilename('about.md'), 'About');
   assert.equal(titleFromFilename('example.html'), 'Example');
   assert.equal(titleFromFilename('my-page_v2.md'), 'My Page V2');
+});
+
+test('navHTML leaves out excluded pages', () => {
+  assert.match(navHTML('home'), /publications\.html/);
+  assert.doesNotMatch(navHTML('home', 'Site', ['publications']), /publications\.html/);
 });

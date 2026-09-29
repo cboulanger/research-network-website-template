@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGraphData, filterMatches, buildProjectListItems, renderListView, sanitizeGraphData } from '../assets/js/projects-graph.js';
+import { buildGraphData, filterMatches, buildProjectListItems, renderListView, sanitizeGraphData, parseMemberHash, participantsInclude } from '../assets/js/projects-graph.js';
 
 const members = [
   { firstname: 'Ada', lastname: 'Adler', email: 'ada@example.org' },
@@ -96,4 +96,35 @@ test('sanitizeGraphData rewrites link source/target to match the sanitized schol
   const linkToAda = sanitizedLinks.find((l) => l.source === 'project:p1' && l.target === 'scholar:ada-adler');
   assert.ok(linkToAda, 'expected a link from project:p1 to scholar:ada-adler');
   assert.equal(sanitizedLinks.some((l) => l.source.includes('@') || l.target.includes('@')), false);
+});
+
+test('renderListView tags each project with its participant slugs', () => {
+  const container = {};
+  renderListView(projects, members, container);
+  assert.match(container.innerHTML, /data-participants="ada-adler bo-bergman"/);
+  assert.match(container.innerHTML, /data-participants="ada-adler"/);
+  assert.match(container.innerHTML, /<a href="members.html#bo-bergman" data-slug="bo-bergman">/);
+});
+
+test('parseMemberHash extracts the slug from a member hash', () => {
+  assert.equal(parseMemberHash('#member=jane-doe'), 'jane-doe');
+  assert.equal(parseMemberHash('member=jane-doe'), 'jane-doe');
+  assert.equal(parseMemberHash('#member=jos%C3%A9-doe'), 'josé-doe');
+});
+
+test('parseMemberHash returns null for anything else', () => {
+  assert.equal(parseMemberHash(''), null);
+  assert.equal(parseMemberHash('#'), null);
+  assert.equal(parseMemberHash('#member='), null);
+  assert.equal(parseMemberHash('#other=x'), null);
+  assert.equal(parseMemberHash('#member=%E0%A4%A'), null);
+  assert.equal(parseMemberHash(undefined), null);
+});
+
+test('participantsInclude matches whole slugs only', () => {
+  assert.equal(participantsInclude('ada-adler bo-bergman', 'bo-bergman'), true);
+  assert.equal(participantsInclude('ada-adler', 'bo-bergman'), false);
+  assert.equal(participantsInclude('anna-x', 'ann'), false);
+  assert.equal(participantsInclude('', 'ada-adler'), false);
+  assert.equal(participantsInclude(undefined, 'ada-adler'), false);
 });
