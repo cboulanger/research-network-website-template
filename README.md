@@ -135,7 +135,8 @@ the committed generic template) data — see `.env.example` for the remote
 
 Copy `.env.example` to `.env` and fill in `GITHUB_TOKEN` and/or
 `GITLAB_TOKEN`/`GITLAB_HOST` for local forge API tooling (`npm run deploy`
-picks GitHub if `GITHUB_TOKEN` is set, otherwise falls back to GitLab), and/or
+triggers a rebuild on every forge whose token is set — both at once if both
+are set), and/or
 `CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` to build from real or
 remote content. Never commit `.env` or paste any of its values into
 chat/logs.

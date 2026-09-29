@@ -40,22 +40,19 @@ async function deployGithub(token) {
   );
 
   if (!res.ok) {
-    console.error(`Failed to trigger workflow: ${res.status} ${res.statusText}`);
-    console.error(await res.text());
-    process.exit(1);
+    throw new Error(
+      `Failed to trigger workflow: ${res.status} ${res.statusText}\n${await res.text()}`,
+    );
   }
 
   console.log(
-    `Workflow dispatched on ${DEPLOY_BRANCH}: https://github.com/${projectPath}/actions`,
+    `[github] Workflow dispatched on ${DEPLOY_BRANCH}: https://github.com/${projectPath}/actions`,
   );
 }
 
 async function deployGitlab(token) {
   const host = process.env.GITLAB_HOST;
-  if (!host) {
-    console.error('GITLAB_HOST must be set in .env (see .env.example).');
-    process.exit(1);
-  }
+  if (!host) throw new Error('GITLAB_HOST must be set in .env (see .env.example).');
   const remoteUrl = findRemoteUrl(host);
   if (!remoteUrl) throw new Error(`No git remote pointing at ${host} was found.`);
   const projectPath = encodeURIComponent(projectPathFromRemoteUrl(remoteUrl));
@@ -67,27 +64,40 @@ async function deployGitlab(token) {
   });
 
   if (!res.ok) {
-    console.error(`Failed to trigger pipeline: ${res.status} ${res.statusText}`);
-    console.error(await res.text());
-    process.exit(1);
+    throw new Error(
+      `Failed to trigger pipeline: ${res.status} ${res.statusText}\n${await res.text()}`,
+    );
   }
 
   const data = await res.json();
-  console.log(`Pipeline #${data.id} triggered on ${DEPLOY_BRANCH}: ${data.web_url}`);
+  console.log(`[gitlab] Pipeline #${data.id} triggered on ${DEPLOY_BRANCH}: ${data.web_url}`);
 }
 
 async function main() {
   const githubToken = process.env.GITHUB_TOKEN;
   const gitlabToken = process.env.GITLAB_TOKEN;
 
-  if (githubToken) {
-    await deployGithub(githubToken);
-  } else if (gitlabToken) {
-    await deployGitlab(gitlabToken);
-  } else {
-    console.error('Set GITHUB_TOKEN or GITLAB_TOKEN in .env (see .env.example).');
+  if (!githubToken && !gitlabToken) {
+    console.error('Set GITHUB_TOKEN and/or GITLAB_TOKEN in .env (see .env.example).');
     process.exit(1);
   }
+
+  const targets = [
+    githubToken && { name: 'github', run: () => deployGithub(githubToken) },
+    gitlabToken && { name: 'gitlab', run: () => deployGitlab(gitlabToken) },
+  ].filter(Boolean);
+
+  const results = await Promise.allSettled(targets.map(({ run }) => run()));
+
+  let failed = false;
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      failed = true;
+      console.error(`[${targets[i].name}] ${result.reason.message}`);
+    }
+  });
+
+  if (failed) process.exit(1);
 }
 
 main();
