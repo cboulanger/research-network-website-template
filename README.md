@@ -1,11 +1,11 @@
-# Comparative Legal Futures Network — Website
+# Research Network Website Template
 
-Static, no-backend website for the Comparative Legal Futures Network
-(CLFN), a fictitious example research collaboration used as this
-repo's generic default content. See
-`docs/superpowers/specs/2026-09-22-rcsl-wg-histories-site-design.md` and
-`docs/superpowers/specs/2026-09-23-static-build-pipeline-design.md` for
-the full design.
+A static, no-backend website template for research networks, working
+groups, and similar academic collaborations — members, projects, events,
+news, and publications pages, ready to fill in with your own content.
+
+**Demo:** <https://cboulanger.github.io/research-network-website-template>
+(built from this repo's generic placeholder content).
 
 A Node build step (`npm run build`) turns JSON/Markdown content — normally
 stored outside the repo (see "Storing content outside the repo" below), with
