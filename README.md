@@ -9,8 +9,15 @@ the full design.
 
 A Node build step (`npm run build`) turns hand-maintained JSON/Markdown
 content in `content/` into fully static, crawlable HTML in `public/` — the
-directory GitLab Pages publishes. Node is a build-time tool only; the
-deployed site itself needs no Node, no backend, no secrets.
+directory GitHub Pages (or GitLab Pages, if you host there instead) publishes.
+Node is a build-time tool only; the deployed site itself needs no Node, no
+backend, no secrets.
+
+CI is defined both for GitHub Actions (`.github/workflows/ci.yml`) and GitLab
+CI (`.gitlab-ci.yml`), doing the same thing: validate content and run tests on
+every push/pull request, then build and publish `public/` to Pages on pushes
+to the default branch. Use whichever matches where you host the repo; the
+other one is simply inert on that forge.
 
 **Reusing this template for a real group:** replace everything under
 `content/` (JSON files, `content/pages/`, `content/images/`) with your own
@@ -39,7 +46,7 @@ needs no Node, no backend, no secrets).
 ## Editing content
 
 Add or edit a member, project, event, or news item by hand-editing the
-matching JSON file in `content/data/` and opening a merge request. Each
+matching JSON file in `content/data/` and opening a pull/merge request. Each
 file must validate against its schema in `schema/` (`npm run validate`
 checks this locally; CI enforces it on every push).
 
@@ -126,7 +133,21 @@ the committed generic template) data — see `.env.example` for the remote
 
 ## Local tooling credentials
 
-Copy `.env.example` to `.env` and fill in `GITLAB_TOKEN` for local GitLab
-API tooling, and/or `CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` to
-build from real or remote content. Never commit `.env` or paste any of its
-values into chat/logs.
+Copy `.env.example` to `.env` and fill in `GITHUB_TOKEN` and/or
+`GITLAB_TOKEN`/`GITLAB_HOST` for local forge API tooling (`npm run deploy`
+picks GitHub if `GITHUB_TOKEN` is set, otherwise falls back to GitLab), and/or
+`CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` to build from real or
+remote content. Never commit `.env` or paste any of its values into
+chat/logs.
+
+## Using this as a template on GitHub
+
+Click "Use this template" on the GitHub repo page (or `gh repo create
+<name> --template <owner>/<repo>`) to get your own copy with a clean git
+history. Then, in the new repo's Settings:
+
+- **Pages**: set "Build and deployment" source to "GitHub Actions" (the
+  included workflow handles the rest on every push to the default branch).
+- **Actions → General**: if you use `CONTENT_PATH`/`CONTENT_USERNAME`/
+  `CONTENT_PASSWORD` for real (non-generic) content, add them as repository
+  variables/secrets — `CONTENT_PATH` as a variable, the other two as secrets.
