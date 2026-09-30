@@ -58,12 +58,13 @@ it on every push).
 - `site.json`: site-wide text and branding (nav banner label, landing page
   title/subtitle, optional `favicon`/`logo` filenames pointing at the
   `images/` directory).
-- `members.json`: `email` is the unique id, referenced by
-  `projects[].participants`. Email addresses are never rendered or shipped
-  to the browser — they're used only at build time to resolve
-  participants, and a name-based slug (not the email) is used for any
-  generated link/anchor id.
-- `projects.json`: `participants` is a list of member emails.
+- `members.json`: `id` (`{lastname-slug}-{firstname-slug}`, e.g.
+  `adler-ada`; a numeric suffix like `-2` resolves a same-name collision)
+  is the unique id, referenced by `projects[].participants` and used as
+  the anchor/link id on the Members and Projects pages. `email` is a
+  required contact field, never rendered or shipped to the browser, and
+  is not used for linking.
+- `projects.json`: `participants` is a list of member `id`s.
 - `events.json`: sorted newest-first automatically at build time — no need
   to keep the file itself in date order.
 - `news.json`: same shape as `events.json`. `url` can be an absolute
