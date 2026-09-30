@@ -347,3 +347,32 @@ masked CI/CD variables, and put `GITLAB_TOKEN`, `GITLAB_HOST` (and, without
 git, `GITLAB_PROJECT=group/name`) in `.env` for
 `npm run deploy`, which triggers a rebuild on every forge whose token is set.
 Never commit `.env` or paste any of its values into chat/logs.
+
+## Development
+
+This section is about developing the template itself, not the sites built
+from it. The template is developed on GitHub
+(<https://github.com/cboulanger/research-network-website-template>); GitLab
+is only used as a hosting/deployment target for derived sites (see
+[Hosting on GitLab](#hosting-on-gitlab)) and is not part of the template's
+own release process.
+
+**Conventional commits.** Commit messages on this repository follow
+[Conventional Commits](https://www.conventionalcommits.org/): a `feat:`
+commit introduces a new feature, `fix:` a bug fix, and a `BREAKING CHANGE:`
+footer (or `!` after the type) marks a breaking change. Other prefixes such
+as `chore:`, `docs:`, `refactor:`, and `test:` don't trigger a release.
+
+**Semantic release.** The `release` job in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs
+[semantic-release](https://semantic-release.gitbook.io/) after every push to
+`master` that passes validation. It inspects the commit messages since the
+last release to determine the next version, tags the commit, and publishes a
+GitHub Release with generated notes — no manual version bumps or changelog
+edits. Configuration lives in [`.releaserc.json`](.releaserc.json).
+
+**Branch protection.** `master` is a protected branch: it requires the
+`validate` status check to pass and cannot be pushed to directly, including
+by admins. This means all changes — including by maintainers — go through a
+feature branch and a pull request. Merge only once CI is green; the release
+job then runs automatically on `master`.
