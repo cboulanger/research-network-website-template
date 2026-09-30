@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Members",
   "type": "array",
+  "x-editor": { "sort": { "by": ["lastname", "firstname"], "order": "asc" }, "columns": ["lastname", "firstname"] },
   "items": {
     "type": "object",
     "additionalProperties": false,
@@ -10,6 +11,7 @@
       "id": {
         "type": "string",
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "x-editor": { "readOnly": true, "placeholder": "Assigned automatically from the name" },
         "description": "{lastname-slug}-{firstname-slug}, e.g. doe-jane; a numeric suffix (doe-jane-2) resolves collisions"
       },
       "lastname": { "type": "string", "minLength": 1 },

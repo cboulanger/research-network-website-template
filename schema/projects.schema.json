@@ -2,15 +2,16 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Projects",
   "type": "array",
+  "x-editor": { "sort": { "by": "title", "order": "asc" }, "columns": ["title"] },
   "items": {
     "type": "object",
     "additionalProperties": false,
     "required": ["id", "title", "participants"],
     "properties": {
-      "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+      "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "x-editor": { "readOnly": true, "placeholder": "Assigned automatically from the title" } },
       "title": { "type": "string", "minLength": 1 },
       "subtitle": { "type": "string" },
-      "description": { "type": "string" },
+      "description": { "type": "string", "x-editor": { "widget": "textarea", "rows": 15 } },
       "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
       "image_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
       "participants": {

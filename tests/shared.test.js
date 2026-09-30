@@ -68,6 +68,11 @@ test('computeMemberId strips characters that are not letters or digits', () => {
   assert.equal(computeMemberId("O'Brien", 'Smith-Jones'), 'smith-jones-o-brien');
 });
 
+test('computeMemberId transliterates accented letters instead of dropping them', () => {
+  assert.equal(computeMemberId('Patrícia', 'André'), 'andre-patricia');
+  assert.equal(computeMemberId('Balázs', 'Fekete'), 'fekete-balazs');
+});
+
 test('textMatchesQuery treats an empty query as matching everything', () => {
   assert.equal(textMatchesQuery('', 'ada adler'), true);
   assert.equal(textMatchesQuery('   ', 'ada adler'), true);

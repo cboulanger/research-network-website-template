@@ -14,7 +14,7 @@ async function main() {
     const schema = path.join('schema', `${name}.schema.json`);
     const data = path.join(contentDir, 'data', `${name}.json`);
     if (OPTIONAL.includes(name) && !existsSync(data)) continue;
-    const args = ['--yes', 'ajv-cli', 'validate', '-s', schema, '-d', data];
+    const args = ['--yes', 'ajv-cli', 'validate', '-c', './scripts/lib/ajv-editor-keyword.cjs', '-s', schema, '-d', data];
     // On Windows, npx is a .cmd shim that Node can only launch through a
     // shell; quote the arguments so paths with spaces survive.
     const result = isWindows

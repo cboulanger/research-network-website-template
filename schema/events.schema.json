@@ -2,13 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Events",
   "type": "array",
+  "x-editor": { "sort": { "by": "date", "order": "desc" }, "columns": ["date", "title"] },
   "items": {
     "type": "object",
     "additionalProperties": false,
     "required": ["date", "title"],
     "properties": {
-      "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-      "title": { "type": "string", "minLength": 1 },
+      "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "x-editor": { "widget": "date" } },
+      "title": { "type": "string", "minLength": 1, "x-editor": { "widget": "textarea", "rows": 5 } },
       "url": { "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[^\\s\"'<>:/\\\\][^\\s\"'<>:\\\\]*)$" }
     }
   }

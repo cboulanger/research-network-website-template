@@ -30,13 +30,17 @@ export function resolvePortraitUrl(portraitUrl) {
   return isExternalLink(portraitUrl) ? portraitUrl : `images/${portraitUrl}`;
 }
 
+export function slugify(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function computeMemberId(firstname, lastname) {
-  const slugify = (value) =>
-    String(value ?? '')
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
   return `${slugify(lastname)}-${slugify(firstname)}`;
 }
 
