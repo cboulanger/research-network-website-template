@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { readContentFile, writeContentFile } from './lib/content-store.mjs';
 import { computeMemberId } from '../assets/js/shared.js';
 
@@ -73,6 +74,9 @@ async function main() {
   console.log('Wrote data/members.json and data/projects.json');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 }
