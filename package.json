@@ -11,6 +11,7 @@
     "deploy": "node --env-file-if-exists=.env scripts/deploy.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "d3": "^7.9.0",
     "marked": "^12.0.2"
   }
