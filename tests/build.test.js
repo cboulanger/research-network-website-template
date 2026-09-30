@@ -88,6 +88,25 @@ test('build.mjs copies static assets (CSS and client JS) into public/', async (t
   await rm(publicDir, { recursive: true, force: true });
 });
 
+test('build.mjs applies the theme selected in site.json', async (t) => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await writeFile(
+    path.join(contentDir, 'data', 'site.json'),
+    JSON.stringify({ bannerLabel: 'TX', title: 'Test Network', subtitle: 'A test subtitle.', theme: 'dark' })
+  );
+
+  await runBuild(contentDir, publicDir);
+
+  const css = await readFile(path.join(publicDir, 'assets', 'css', 'style.css'), 'utf8');
+  assert.match(css, /#6ea8fe/, 'expected the dark theme accent color');
+  assert.doesNotMatch(css, /#2c5282/, 'did not expect the light theme accent color');
+
+  await rm(contentDir, { recursive: true, force: true });
+  await rm(publicDir, { recursive: true, force: true });
+});
+
 test('build.mjs links project participants from the members page to the focused projects page', async (t) => {
   const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
   const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
