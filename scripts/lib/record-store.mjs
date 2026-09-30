@@ -3,7 +3,7 @@
 // position in the array.
 export function findRecordIndex(records, keyField, key) {
   if (keyField) return records.findIndex((r) => r[keyField] === key);
-  const index = Number(key);
+  const index = /^\d+$/.test(key) ? Number(key) : NaN;
   return Number.isInteger(index) && index >= 0 && index < records.length ? index : -1;
 }
 

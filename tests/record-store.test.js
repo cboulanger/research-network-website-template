@@ -14,6 +14,13 @@ test('findRecordIndex finds by array index when keyField is null', () => {
   assert.equal(findRecordIndex(indexRecords, null, '1'), 1);
   assert.equal(findRecordIndex(indexRecords, null, '5'), -1);
   assert.equal(findRecordIndex(indexRecords, null, 'not-a-number'), -1);
+  // Regression tests: reject empty/whitespace/hex/exponential strings that Number() coerces to integers
+  assert.equal(findRecordIndex(indexRecords, null, ''), -1);
+  assert.equal(findRecordIndex(indexRecords, null, ' '), -1);
+  assert.equal(findRecordIndex(indexRecords, null, '  1  '), -1);
+  assert.equal(findRecordIndex(indexRecords, null, '0x1'), -1);
+  assert.equal(findRecordIndex(indexRecords, null, '1e1'), -1);
+  assert.equal(findRecordIndex(indexRecords, null, '-1'), -1);
 });
 
 test('replaceRecord returns a new array with the record at the given key replaced', () => {
