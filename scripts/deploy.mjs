@@ -1,7 +1,17 @@
-import { deploy } from './lib/deploy.mjs';
+import { deploy, waitForDeployStatus } from './lib/deploy.mjs';
 
 try {
-  const results = await deploy();
+  const triggered = await deploy();
+  for (const { name, ok, message } of triggered) {
+    (ok ? console.log : console.error)(`[${name}] ${message}`);
+  }
+  if (triggered.some((r) => !r.ok)) process.exit(1);
+
+  console.log('Waiting for the build to finish…');
+  const results = await waitForDeployStatus(triggered, {
+    onTick: ({ elapsedMs, pendingNames }) =>
+      console.log(`  still running after ${Math.round(elapsedMs / 1000)}s: ${pendingNames.join(', ')}`),
+  });
   for (const { name, ok, message } of results) {
     (ok ? console.log : console.error)(`[${name}] ${message}`);
   }

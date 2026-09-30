@@ -9,7 +9,7 @@ import { readContentFile, writeContentFile } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
-import { deploy, resolveSiteUrl } from './lib/deploy.mjs';
+import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
 import { computeMemberId, slugify } from '../assets/js/shared.js';
 
 // Some networks have a broken IPv6 route to the WebDAV host, which stalls the
@@ -23,7 +23,45 @@ const STATIC_FILES = {
   '/style.css': { file: 'style.css', type: 'text/css' },
 };
 
-export function createServer({ contentPath, schemaDir, editorDir, deployFn = deploy, siteUrlFn = resolveSiteUrl }) {
+const PREVIEW_MIME = {
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+// Runs the same build the "npm run build"/CI use, as a child process so a
+// build error (a bad Zotero fetch, invalid content) can't crash the editor.
+function runBuild({ buildScript, cwd = process.cwd() }) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [buildScript], { cwd, env: process.env });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `Build failed with exit code ${code}`));
+    });
+  });
+}
+
+export function createServer({
+  contentPath,
+  schemaDir,
+  editorDir,
+  deployFn = deploy,
+  siteUrlFn = resolveSiteUrl,
+  waitFn = waitForDeployStatus,
+  buildFn = () => runBuild({ buildScript: path.join(editorDir, '..', 'build.mjs') }),
+  publicDir = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public'),
+}) {
   const ajv = new Ajv({ allErrors: true, strict: true });
   // Presentation hints for the editor UI (widget, rows, readOnly, sort, label); not used for validation.
   ajv.addKeyword('x-editor');
@@ -152,9 +190,19 @@ export function createServer({ contentPath, schemaDir, editorDir, deployFn = dep
             return sendError(res, 400, `Cannot deploy: ${name} failed schema validation`, validate.errors);
           }
         }
-        return sendJSON(res, 200, { results: await deployFn() });
+        const triggered = await deployFn();
+        return sendJSON(res, 200, { results: await waitFn(triggered) });
       } catch (err) {
         return sendError(res, 400, err.message);
+      }
+    }
+
+    if (parts.length === 2 && parts[1] === 'build' && req.method === 'POST') {
+      try {
+        await buildFn();
+        return sendJSON(res, 200, { ok: true });
+      } catch (err) {
+        return sendError(res, 500, err.message);
       }
     }
 
@@ -238,10 +286,32 @@ export function createServer({ contentPath, schemaDir, editorDir, deployFn = dep
     res.end(body);
   }
 
+  // Serves the last `npm run build` output so "Build & preview" can open it
+  // without a second dev server. Confined to publicDir: a path that would
+  // resolve outside it (via "..") is rejected rather than followed.
+  function servePreview(res, pathname) {
+    const rel = pathname === '/preview' || pathname === '/preview/' ? 'index.html' : pathname.slice('/preview/'.length);
+    const filePath = path.join(publicDir, rel);
+    if (filePath !== publicDir && !filePath.startsWith(publicDir + path.sep)) {
+      return sendError(res, 403, 'Forbidden');
+    }
+    let body;
+    try {
+      body = readFileSync(filePath);
+    } catch {
+      return sendError(res, 404, 'Not found');
+    }
+    const type = PREVIEW_MIME[path.extname(filePath)] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': type });
+    res.end(body);
+  }
+
   return http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith('/api/')) {
       handleApi(req, res, url).catch((err) => sendError(res, err.statusCode || 500, err.message, err.details));
+    } else if (url.pathname === '/preview' || url.pathname.startsWith('/preview/')) {
+      servePreview(res, url.pathname);
     } else {
       serveStatic(res, url.pathname);
     }

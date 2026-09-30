@@ -134,11 +134,11 @@ if you just want to publish.
 
     npm run deploy
 
-This asks GitHub to rebuild the public site. GitHub fetches your content from
-the WebDAV share itself, so nothing needs to be uploaded; a minute or two
-later the changes are live. Instead of the command you can click **Deploy
-site** in the editor, which does the same. Repeat steps 7–10 whenever you
-want to update the site.
+This asks GitHub to rebuild the public site, then waits and reports whether
+the build succeeded. GitHub fetches your content from the WebDAV share
+itself, so nothing needs to be uploaded. Instead of the command you can click
+**Deploy site** in the editor, which does the same. Repeat steps 7–10
+whenever you want to update the site.
 
 ### Updating the website code
 
@@ -199,6 +199,15 @@ immediately, so point it at a copy of your content to try it out. It has no
 authentication of its own — run it on your own machine only, never expose it
 beyond `127.0.0.1`.
 
+### Build & preview button
+
+The sidebar's **Build & open local site** button (`POST /api/build`) runs the
+same build as `npm run build`/CI against your current `CONTENT_PATH`, then
+opens the result in a new tab, served from `/preview/` by the editor itself
+(so the projects graph and other same-origin fetches work, unlike opening
+`public/index.html` as a `file://` URL). Re-click it after further edits to
+rebuild and reopen.
+
 ### Deploy button and site link
 
 The sidebar's **Deploy site** button (`POST /api/deploy`) first validates every
@@ -206,7 +215,11 @@ collection the editor manages against its schema — the same check as
 `npm run validate` — and refuses to trigger a rebuild if any of it fails,
 listing the errors instead, so CI is never started on content it would reject.
 It then asks each forge whose token is set (`GITHUB_TOKEN`, `GITLAB_TOKEN`) to
-rebuild; see `.env.example` for the settings.
+rebuild, and — like `npm run deploy` — polls that forge's workflow/pipeline
+until it finishes or `DEPLOY_POLL_TIMEOUT_MS` passes (default 5 minutes,
+checking every `DEPLOY_POLL_INTERVAL_MS`, default 10s), so the status box
+reports a real success or failure instead of just "rebuild started"; see
+`.env.example` for the settings.
 
 Below the button, an **Open the site** link (`GET /api/site`) points at the
 published site. The address is resolved in this order:

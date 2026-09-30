@@ -10,10 +10,17 @@
 <div class="layout">
   <div class="sidebar">
     <nav id="type-nav" class="type-nav"></nav>
-    <div class="deploy-box">
-      <button id="deploy-button" type="button">Deploy site</button>
-      <div id="deploy-status" class="deploy-status" role="status"></div>
-      <a id="site-link" class="site-link" href="#" target="_blank" rel="noopener" hidden>Open the site ↗</a>
+    <div class="sidebar-tools">
+      <h2 class="tools-heading">Site</h2>
+      <div class="tool">
+        <button id="preview-button" type="button" class="tool-button">Build &amp; preview locally</button>
+        <p id="preview-status" class="tool-status" role="status"></p>
+      </div>
+      <div class="tool">
+        <button id="deploy-button" type="button" class="tool-button">Deploy site</button>
+        <p id="deploy-status" class="tool-status" role="status"></p>
+      </div>
+      <a id="site-link" class="tool-link" href="#" target="_blank" rel="noopener" hidden>Open the live site ↗</a>
     </div>
   </div>
   <main class="main">

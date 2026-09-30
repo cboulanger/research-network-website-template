@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deploy } from '../scripts/lib/deploy.mjs';
+import { deploy, waitForDeployStatus } from '../scripts/lib/deploy.mjs';
 
 function fakeFetch(calls) {
   return async (url, options = {}) => {
@@ -104,4 +104,75 @@ test('resolveSiteUrl reads the GitLab Pages address and returns null when nothin
     null,
   );
   assert.equal(await resolveSiteUrl({ env: {}, fetchImpl: fakeFetch([]), remoteUrls: () => [] }), null);
+});
+
+test('waitForDeployStatus passes through a result with no statusRef unchanged', async () => {
+  const triggered = [{ name: 'github', ok: false, message: 'boom' }];
+  const results = await waitForDeployStatus(triggered, {
+    fetchImpl: async () => {
+      throw new Error('should not be called');
+    },
+  });
+  assert.deepEqual(results, triggered);
+});
+
+test('waitForDeployStatus polls a GitHub run (not yet listed, then running, then completed) to success', async () => {
+  const runsResponses = [{ workflow_runs: [] }, { workflow_runs: [{ id: 42, created_at: new Date(Date.now() + 1000).toISOString() }] }];
+  const runResponses = [{ id: 42, status: 'in_progress' }, { id: 42, status: 'completed', conclusion: 'success', html_url: 'https://github.com/me/site/actions/runs/42' }];
+  let runsCall = 0;
+  let runCall = 0;
+  const fetchImpl = async (url) => {
+    if (url.includes('/actions/workflows/ci.yml/runs')) return { ok: true, json: async () => runsResponses[runsCall++] };
+    if (/\/actions\/runs\/\d+$/.test(url)) return { ok: true, json: async () => runResponses[runCall++] };
+    throw new Error(`unexpected url ${url}`);
+  };
+  const triggered = [
+    {
+      name: 'github',
+      ok: true,
+      message: 'Workflow dispatched on main: https://github.com/me/site/actions',
+      statusRef: { type: 'github', projectPath: 'me/site', ref: 'main', sinceISO: new Date().toISOString() },
+    },
+  ];
+  const results = await waitForDeployStatus(triggered, { env: { GITHUB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
+  assert.equal(results[0].ok, true);
+  assert.match(results[0].message, /Succeeded/);
+  assert.match(results[0].message, /runs\/42/);
+});
+
+test('waitForDeployStatus polls a GitLab pipeline to failure', async () => {
+  const statuses = ['running', 'failed'];
+  let i = 0;
+  const fetchImpl = async () => ({ ok: true, json: async () => ({ status: statuses[i++], web_url: 'https://gl/p/7' }) });
+  const triggered = [
+    { name: 'gitlab', ok: true, message: 'Pipeline #7 triggered', statusRef: { type: 'gitlab', host: 'gl', projectPath: 'grp%2Fsite', pipelineId: 7 } },
+  ];
+  const results = await waitForDeployStatus(triggered, { env: { GITLAB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
+  assert.equal(results[0].ok, false);
+  assert.match(results[0].message, /Failed/);
+});
+
+test('waitForDeployStatus reports a timeout when the pipeline never finishes', async () => {
+  const fetchImpl = async () => ({ ok: true, json: async () => ({ status: 'running', web_url: 'https://gl/p/7' }) });
+  const triggered = [
+    { name: 'gitlab', ok: true, message: 'Pipeline #1 triggered', statusRef: { type: 'gitlab', host: 'gl', projectPath: 'g%2Fp', pipelineId: 1 } },
+  ];
+  const results = await waitForDeployStatus(triggered, { env: { GITLAB_TOKEN: 't' }, fetchImpl, intervalMs: 5, timeoutMs: 20 });
+  assert.equal(results[0].ok, false);
+  assert.match(results[0].message, /Timed out/);
+});
+
+test('waitForDeployStatus reports a per-target failure when the status check itself errors, without affecting other targets', async () => {
+  const fetchImpl = async (url) => {
+    if (url.includes('gl.example')) throw new Error('network down');
+    return { ok: true, json: async () => ({ status: 'success', web_url: 'https://gl/p/9' }) };
+  };
+  const triggered = [
+    { name: 'broken', ok: true, message: 'triggered', statusRef: { type: 'gitlab', host: 'gl.example', projectPath: 'g%2Fp', pipelineId: 1 } },
+    { name: 'fine', ok: true, message: 'triggered', statusRef: { type: 'gitlab', host: 'gl.ok', projectPath: 'g%2Fp', pipelineId: 9 } },
+  ];
+  const results = await waitForDeployStatus(triggered, { fetchImpl, intervalMs: 1, timeoutMs: 1000 });
+  assert.equal(results.find((r) => r.name === 'broken').ok, false);
+  assert.match(results.find((r) => r.name === 'broken').message, /Status check failed: network down/);
+  assert.equal(results.find((r) => r.name === 'fine').ok, true);
 });

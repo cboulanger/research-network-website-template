@@ -22,6 +22,16 @@ function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Status messages (deploy/build results) sometimes embed a URL worth
+// clicking (a pipeline run, a live site); this turns plain text into safe
+// HTML with any http(s) URL as a real link instead of inert text.
+function setStatusText(el, text) {
+  el.innerHTML = escapeHTML(text).replace(
+    /https?:\/\/[^\s]+/g,
+    (url) => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
+  );
+}
+
 async function fetchJSON(url, options) {
   const res = await fetch(url, options);
   const body = await res.json().catch(() => null);
@@ -471,23 +481,48 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
   }
 });
 
+document.getElementById('preview-button').addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  const status = document.getElementById('preview-status');
+  button.disabled = true;
+  status.className = 'tool-status';
+  status.textContent = 'Building…';
+  // Opened synchronously, still inside the click's user-activation window, so
+  // the browser doesn't treat it as an unrequested popup. Once the build
+  // finishes below, its location is filled in; a tab left on about:blank
+  // means the build failed (see the error branch). No "noopener": we need
+  // the window reference back to redirect it once the build is done, and
+  // this is our own local-only content (never a link to another site).
+  const previewTab = window.open();
+  try {
+    await fetchJSON('/api/build', { method: 'POST' });
+    status.textContent = 'Built.';
+    if (previewTab) previewTab.location = '/preview/index.html';
+  } catch (err) {
+    status.classList.add('error');
+    setStatusText(status, err.message);
+    previewTab?.close();
+  } finally {
+    button.disabled = false;
+  }
+});
+
 document.getElementById('deploy-button').addEventListener('click', async (e) => {
   const button = e.currentTarget;
   const status = document.getElementById('deploy-status');
   button.disabled = true;
-  status.className = 'deploy-status';
-  status.textContent = 'Requesting rebuild…';
+  status.className = 'tool-status';
+  status.textContent = 'Requesting rebuild…\nWaiting for it to finish, this can take a few minutes.';
   try {
     const { results } = await fetchJSON('/api/deploy', { method: 'POST' });
-    status.textContent = results.map((r) => `[${r.name}] ${r.ok ? 'rebuild started' : r.message}`).join('\n');
+    setStatusText(status, results.map((r) => `[${r.name}] ${r.message}`).join('\n'));
     if (results.some((r) => !r.ok)) status.classList.add('error');
-    else status.textContent += '\nThe site will be updated in a minute or two.';
   } catch (err) {
     status.classList.add('error');
     const details = Array.isArray(err.details)
       ? err.details.map((d) => `\n• ${d.instancePath || '/'} ${d.message}`).join('')
       : '';
-    status.textContent = err.message + details;
+    setStatusText(status, err.message + details);
   } finally {
     button.disabled = false;
   }

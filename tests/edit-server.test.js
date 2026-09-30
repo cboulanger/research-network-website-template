@@ -292,6 +292,68 @@ test('POST /api/deploy refuses to deploy invalid content and does not call the d
   }
 });
 
+test('POST /api/deploy waits for the triggered build to finish before responding', async () => {
+  let waitCalledWith = null;
+  const ctx = await startTestServer(
+    {},
+    {
+      deployFn: async () => [{ name: 'github', ok: true, message: 'triggered', statusRef: { type: 'github' } }],
+      waitFn: async (triggered) => {
+        waitCalledWith = triggered;
+        return triggered.map((r) => ({ name: r.name, ok: true, message: 'build succeeded' }));
+      },
+    }
+  );
+  try {
+    const res = await fetch(`${ctx.base}/api/deploy`, { method: 'POST' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { results: [{ name: 'github', ok: true, message: 'build succeeded' }] });
+    assert.equal(waitCalledWith[0].name, 'github');
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/build runs the build function and returns ok', async () => {
+  let called = false;
+  const ctx = await startTestServer({}, { buildFn: async () => { called = true; } });
+  try {
+    const res = await fetch(`${ctx.base}/api/build`, { method: 'POST' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true });
+    assert.equal(called, true);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/build returns 500 with the error message when the build fails', async () => {
+  const ctx = await startTestServer({}, { buildFn: async () => { throw new Error('boom'); } });
+  try {
+    const res = await fetch(`${ctx.base}/api/build`, { method: 'POST' });
+    assert.equal(res.status, 500);
+    assert.match((await res.json()).error, /boom/);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /preview/* serves files from the built public directory', async () => {
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'preview-'));
+  await writeFile(path.join(publicDir, 'index.html'), '<h1>hi</h1>');
+  const ctx = await startTestServer({}, { publicDir });
+  try {
+    const res = await fetch(`${ctx.base}/preview/index.html`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+    assert.equal(await res.text(), '<h1>hi</h1>');
+    assert.equal((await fetch(`${ctx.base}/preview/nope.html`)).status, 404);
+  } finally {
+    await ctx.close();
+    await rm(publicDir, { recursive: true, force: true });
+  }
+});
+
 test('GET /api/site returns the resolved site URL', async () => {
   const ctx = await startTestServer({}, { siteUrlFn: async () => 'https://site.example/' });
   try {
