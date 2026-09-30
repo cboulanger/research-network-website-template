@@ -5,14 +5,16 @@
     "affiliation": "Institute for Legal History",
     "url": "https://example.edu/people/adler",
     "email": "ada.adler@example.edu",
-    "portrait_url": "https://i.pravatar.cc/300?img=47"
+    "portrait_url": "https://i.pravatar.cc/300?img=47",
+    "id": "adler-ada"
   },
   {
     "lastname": "Bergman",
     "firstname": "Bo",
     "affiliation": "Centre for Socio-Legal Studies",
     "url": "https://example.ac.uk/people/bergman",
-    "email": "bo.bergman@example.ac.uk"
+    "email": "bo.bergman@example.ac.uk",
+    "id": "bergman-bo"
   },
   {
     "lastname": "Okoro",
@@ -20,7 +22,8 @@
     "affiliation": "Faculty of Law, University of Lagos",
     "url": "https://example.edu.ng/people/okoro",
     "email": "chidi.okoro@example.edu.ng",
-    "portrait_url": "https://i.pravatar.cc/300?img=12"
+    "portrait_url": "https://i.pravatar.cc/300?img=12",
+    "id": "okoro-chidi"
   },
   {
     "lastname": "Kovac",
@@ -28,12 +31,14 @@
     "affiliation": "Department of Sociology, University of Zagreb",
     "url": "https://example.hr/people/kovac",
     "email": "dana.kovac@example.hr",
-    "portrait_url": "https://i.pravatar.cc/300?img=32"
+    "portrait_url": "https://i.pravatar.cc/300?img=32",
+    "id": "kovac-dana"
   },
   {
     "lastname": "Sundstrom",
     "firstname": "Erik",
     "affiliation": "Faculty of Law, Uppsala University",
-    "email": "erik.sundstrom@example.se"
+    "email": "erik.sundstrom@example.se",
+    "id": "sundstrom-erik"
   }
 ]

@@ -6,7 +6,11 @@
     "description": "A collaborative research project reconstructing the institutional history of the Comparative Legal Futures Network through archival research and oral history interviews.",
     "url": "https://example.org/projects/history-of-clfn",
     "image_url": "https://picsum.photos/seed/clfn/600/400",
-    "participants": ["ada.adler@example.edu", "bo.bergman@example.ac.uk", "dana.kovac@example.hr"]
+    "participants": [
+      "adler-ada",
+      "bergman-bo",
+      "kovac-dana"
+    ]
   },
   {
     "id": "biographies-project",
@@ -15,13 +19,20 @@
     "description": "An edited volume gathering short critical biographies of scholars who shaped comparative legal studies as a discipline.",
     "url": "https://example.org/projects/biographies",
     "image_url": "https://picsum.photos/seed/biographies/600/400",
-    "participants": ["ada.adler@example.edu", "chidi.okoro@example.edu.ng", "erik.sundstrom@example.se"]
+    "participants": [
+      "adler-ada",
+      "okoro-chidi",
+      "sundstrom-erik"
+    ]
   },
   {
     "id": "oral-history-archive",
     "title": "Oral History Archive",
     "subtitle": "Recorded interviews with senior scholars in comparative legal studies",
     "description": "A growing archive of recorded and transcribed interviews, conducted with founding and senior members of the field.",
-    "participants": ["bo.bergman@example.ac.uk", "chidi.okoro@example.edu.ng"]
+    "participants": [
+      "bergman-bo",
+      "okoro-chidi"
+    ]
   }
 ]
