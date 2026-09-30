@@ -160,30 +160,39 @@ function listColumns() {
   return columns?.length ? columns : Object.keys(recordSchema().properties).slice(0, 1);
 }
 
-// Returns [record, index] pairs in display order; the original index is kept
-// because index-keyed collections (events, news) address records by it.
-function sortedEntries() {
-  const entries = state.records.map((record, index) => [record, index]);
+// Translates the schema's "sort" hint (field name(s) + direction) into a
+// DataTables `order` array of [columnIndex, direction] pairs, so the table's
+// initial sort matches today's behavior while leaving ongoing sorting to the
+// user via the column headers DataTables adds.
+function initialOrder(columns) {
   const sort = editorHints(state.schema).sort;
-  if (!sort) return entries;
-  const fields = [].concat(sort.by);
-  const direction = sort.order === 'desc' ? -1 : 1;
-  return entries.sort(([a], [b]) => {
-    for (const field of fields) {
-      const cmp = String(a[field] ?? '').localeCompare(String(b[field] ?? ''), undefined, { sensitivity: 'base' });
-      if (cmp !== 0) return cmp * direction;
-    }
-    return 0;
-  });
+  if (!sort) return [];
+  const direction = sort.order === 'desc' ? 'desc' : 'asc';
+  return [].concat(sort.by)
+    .map((field) => columns.indexOf(field))
+    .filter((index) => index !== -1)
+    .map((index) => [index, direction]);
 }
 
+// Holds the live DataTables instance so a type switch can tear it down before
+// the table markup is replaced. DataTables' own `destroy: true` init option
+// instead restores the DOM to whatever it looked like at the *first* ever
+// init of this table node before reinitializing — which would clobber the
+// fresh rows below with the previous type's data — so destroying explicitly,
+// before rewriting the markup, is required here.
+let dataTable = null;
+
 function renderTable() {
+  if (dataTable) {
+    dataTable.destroy();
+    dataTable = null;
+  }
   const columns = listColumns();
   document.querySelector('#records-table thead').innerHTML =
     `<tr>${columns.map((c) => `<th>${escapeHTML(c)}</th>`).join('')}<th>Actions</th></tr>`;
   const tbody = document.querySelector('#records-table tbody');
-  tbody.innerHTML = sortedEntries()
-    .map(([record, index]) => {
+  tbody.innerHTML = state.records
+    .map((record, index) => {
       const key = recordKey(record, index);
       return `<tr>
         ${columns.map((c) => `<td class="cell-${escapeHTML(c)}">${escapeHTML(record[c])}</td>`).join('')}
@@ -194,6 +203,11 @@ function renderTable() {
       </tr>`;
     })
     .join('');
+  dataTable = new DataTable('#records-table', {
+    paging: false,
+    order: initialOrder(columns),
+    columnDefs: [{ targets: -1, orderable: false, searchable: false }],
+  });
 }
 
 function findRecordByKey(key) {

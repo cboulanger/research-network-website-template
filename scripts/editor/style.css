@@ -38,6 +38,10 @@ td { white-space: pre-line; vertical-align: top; }
 .form-message { background: #e6f4ea; border: 1px solid #a8d5b5; padding: 0.5rem; margin-bottom: 1rem; }
 .field-help { font-size: 0.8rem; color: #555; margin-bottom: 0.2rem; }
 .loading { color: #555; margin-top: 1rem; }
+.dt-container, .dt-input { font-family: inherit; font-size: 0.9rem; color: inherit; }
+.dt-search { margin-bottom: 0.5rem; }
+.dt-input { padding: 0.3rem; }
+.dt-info { color: #555; margin-top: 0.5rem; }
 .type-nav a.load-failed::after {
   content: "!";
   display: inline-block;
