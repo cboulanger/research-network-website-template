@@ -8,6 +8,7 @@
     "migrate-member-ids": "node --env-file-if-exists=.env scripts/migrate-member-ids.mjs",
     "build": "node --env-file-if-exists=.env scripts/build.mjs",
     "build:watch": "node --env-file-if-exists=.env --watch scripts/build.mjs",
+    "edit": "node --env-file-if-exists=.env scripts/edit-server.mjs",
     "deploy": "node --env-file-if-exists=.env scripts/deploy.mjs"
   },
   "devDependencies": {

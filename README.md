@@ -47,6 +47,20 @@ content or code change — what's in `public/` is exactly what ships.
 Both require Node.js locally (only for tooling — the deployed site itself
 needs no Node, no backend, no secrets).
 
+## Local data editor
+
+    npm run edit
+
+Starts a local-only admin UI at `http://127.0.0.1:4848` (override the port
+with `EDIT_PORT`) for editing `members.json`, `projects.json`,
+`events.json`, and `news.json` — schema-driven forms with create/edit/delete,
+plus a search-and-add picker for a project's participants. It reads and
+writes the same `CONTENT_PATH` the build uses (local directory or a WebDAV
+store — see "Storing content outside the repo" below), writing each change
+immediately, so point it at a copy of your content if you want to try it out
+without touching real data. It has no authentication of its own — it's meant
+to run on your own machine, not be exposed beyond `127.0.0.1`.
+
 ## Content shape
 
 Real content lives outside the repo (see "Storing content outside the repo"
