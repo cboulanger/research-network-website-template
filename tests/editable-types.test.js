@@ -9,7 +9,7 @@ async function writeSchema(dir, name, schema) {
   await writeFile(path.join(dir, `${name}.schema.json`), JSON.stringify(schema));
 }
 
-test('getEditableTypes picks up array-of-items schemas and ignores object schemas', async () => {
+test('getEditableTypes picks up array-of-items and object schemas, tagging each with its kind', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'schemas-'));
   await writeSchema(dir, 'members', {
     type: 'array',
@@ -17,7 +17,7 @@ test('getEditableTypes picks up array-of-items schemas and ignores object schema
   });
   await writeSchema(dir, 'site', { type: 'object', properties: { title: { type: 'string' } } });
   const types = getEditableTypes(dir);
-  assert.deepEqual(types.map((t) => t.name).sort(), ['members']);
+  assert.deepEqual(types.map((t) => [t.name, t.kind]).sort(), [['members', 'array'], ['site', 'object']]);
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -45,5 +45,5 @@ test('getEditableTypes sets keyField to null when the item schema has no id prop
 
 test('getEditableTypes reflects the real schema/ directory shape', () => {
   const names = getEditableTypes('schema').map((t) => t.name).sort();
-  assert.deepEqual(names, ['events', 'members', 'news', 'projects']);
+  assert.deepEqual(names, ['events', 'members', 'news', 'projects', 'publications', 'site']);
 });

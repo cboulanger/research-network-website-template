@@ -12,10 +12,12 @@ export function getEditableTypes(schemaDir) {
       name: f.replace(/\.schema\.json$/, ''),
       schema: JSON.parse(readFileSync(path.join(schemaDir, f), 'utf8')),
     }))
-    .filter(({ schema }) => schema.type === 'array' && schema.items)
+    .filter(({ schema }) => (schema.type === 'array' && schema.items) || (schema.type === 'object' && schema.properties))
     .map(({ name, schema }) => ({
       name,
       schema,
-      keyField: schema.items.properties && schema.items.properties.id ? 'id' : null,
+      // 'object' types (site, publications) are singletons edited as one record.
+      kind: schema.type === 'object' ? 'object' : 'array',
+      keyField: schema.items?.properties?.id ? 'id' : null,
     }));
 }
