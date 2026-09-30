@@ -1,13 +1,20 @@
+import dns from 'node:dns';
 import http from 'node:http';
+import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import Ajv from 'ajv';
 import { readContentFile, writeContentFile } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
-import { computeMemberId } from '../assets/js/shared.js';
+import { deploy, resolveSiteUrl } from './lib/deploy.mjs';
+import { computeMemberId, slugify } from '../assets/js/shared.js';
+
+// Some networks have a broken IPv6 route to the WebDAV host, which stalls the
+// connection until Node's 10s connect timeout. Try IPv4 first.
+dns.setDefaultResultOrder('ipv4first');
 
 const STATIC_FILES = {
   '/': { file: 'index.html', type: 'text/html' },
@@ -16,8 +23,10 @@ const STATIC_FILES = {
   '/style.css': { file: 'style.css', type: 'text/css' },
 };
 
-export function createServer({ contentPath, schemaDir, editorDir }) {
+export function createServer({ contentPath, schemaDir, editorDir, deployFn = deploy, siteUrlFn = resolveSiteUrl }) {
   const ajv = new Ajv({ allErrors: true, strict: true });
+  // Presentation hints for the editor UI (widget, rows, readOnly, sort, label); not used for validation.
+  ajv.addKeyword('x-editor');
   const types = getEditableTypes(schemaDir);
   const typeByName = new Map(types.map((t) => [t.name, t]));
   const validators = new Map(types.map((t) => [t.name, ajv.compile(t.schema)]));
@@ -49,6 +58,17 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
     return JSON.parse(await readContentFile(contentPath, `data/${name}.json`));
   }
 
+  // Singleton files may not exist yet (publications.json is optional); that
+  // reads as null. Any other read failure still propagates.
+  async function loadSingleton(name) {
+    try {
+      return await loadRecords(name);
+    } catch (err) {
+      if (err.code === 'ENOENT' || /: 404 /.test(err.message)) return null;
+      throw err;
+    }
+  }
+
   function validateOrThrow(name, records) {
     const validate = validators.get(name);
     if (!validate(records)) {
@@ -64,9 +84,8 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
     await writeContentFile(contentPath, `data/${name}.json`, JSON.stringify(records, null, 2) + '\n');
   }
 
-  function uniqueMemberId(existingMembers, firstname, lastname) {
-    const usedIds = new Set(existingMembers.map((m) => m.id));
-    const base = computeMemberId(firstname, lastname);
+  function uniqueId(existingRecords, base) {
+    const usedIds = new Set(existingRecords.map((r) => r.id));
     let id = base;
     let suffix = 2;
     while (usedIds.has(id)) {
@@ -103,7 +122,7 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
     const parts = url.pathname.split('/').filter(Boolean); // ['api', ...]
 
     if (parts.length === 2 && parts[1] === 'types' && req.method === 'GET') {
-      return sendJSON(res, 200, types.map((t) => ({ name: t.name, keyField: t.keyField })));
+      return sendJSON(res, 200, types.map((t) => ({ name: t.name, kind: t.kind, keyField: t.keyField })));
     }
 
     if (parts.length === 3 && parts[1] === 'schema' && req.method === 'GET') {
@@ -112,11 +131,53 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
       return sendJSON(res, 200, type.schema);
     }
 
+    if (parts.length === 2 && parts[1] === 'site' && req.method === 'GET') {
+      return sendJSON(res, 200, { url: await siteUrlFn() });
+    }
+
+    if (parts.length === 2 && parts[1] === 'deploy' && req.method === 'POST') {
+      try {
+        // Same schema check as `npm run validate`, so a rebuild is never
+        // triggered on content that would fail CI.
+        for (const { name, kind } of types) {
+          let records;
+          try {
+            records = kind === 'object' ? await loadSingleton(name) : await loadRecords(name);
+            if (records === null) continue;
+          } catch (err) {
+            return sendError(res, 400, `Cannot deploy: ${name} could not be read (${err.message})`);
+          }
+          const validate = validators.get(name);
+          if (!validate(records)) {
+            return sendError(res, 400, `Cannot deploy: ${name} failed schema validation`, validate.errors);
+          }
+        }
+        return sendJSON(res, 200, { results: await deployFn() });
+      } catch (err) {
+        return sendError(res, 400, err.message);
+      }
+    }
+
     if (parts[1] === 'data' && parts.length >= 3) {
       const name = parts[2];
       const type = typeByName.get(name);
       if (!type) return sendError(res, 404, `Unknown type "${name}"`);
       const key = parts.length === 4 ? decodeURIComponent(parts[3]) : null;
+
+      if (type.kind === 'object') {
+        if (parts.length !== 3) return sendError(res, 404, 'Not found');
+        if (req.method === 'GET') return sendJSON(res, 200, (await loadSingleton(name)) ?? {});
+        if (req.method === 'PUT') {
+          const body = await readJSONBody(req);
+          try {
+            await saveRecords(name, body);
+          } catch (err) {
+            return sendError(res, err.statusCode || 500, err.message, err.details);
+          }
+          return sendJSON(res, 200, body);
+        }
+        return sendError(res, 405, `${name} is a single record; use GET or PUT`);
+      }
 
       if (req.method === 'GET' && parts.length === 3) {
         return sendJSON(res, 200, await loadRecords(name));
@@ -127,18 +188,9 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
         const records = await loadRecords(name);
         const record = { ...body };
         if (name === 'members') {
-          const existingIds = new Set(records.map((m) => m.id));
-          if (!record.id) {
-            record.id = uniqueMemberId(records, record.firstname, record.lastname);
-          } else if (existingIds.has(record.id)) {
-            let id = record.id;
-            let suffix = 2;
-            while (existingIds.has(id)) {
-              id = `${record.id}-${suffix}`;
-              suffix += 1;
-            }
-            record.id = id;
-          }
+          record.id = uniqueId(records, record.id || computeMemberId(record.firstname, record.lastname));
+        } else if (name === 'projects') {
+          record.id = uniqueId(records, record.id || slugify(record.title));
         }
         try {
           await saveRecords(name, [...records, record]);
@@ -198,7 +250,17 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function openBrowser(url) {
+  const [command, args] =
+    process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+    : process.platform === 'darwin' ? ['open', [url]]
+    : ['xdg-open', [url]];
+  const child = spawn(command, args, { stdio: 'ignore', detached: true });
+  child.on('error', () => console.log('Could not open a browser automatically; open the URL manually.'));
+  child.unref();
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = createServer({
     contentPath: process.env.CONTENT_PATH || './content',
     schemaDir: path.join(__dirname, '..', 'schema'),
@@ -206,6 +268,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   });
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {
-    console.log(`Data editor running at http://127.0.0.1:${port}`);
+    const url = `http://127.0.0.1:${port}`;
+    console.log(`Data editor running at ${url}`);
+    openBrowser(url);
   });
 }

@@ -7,27 +7,167 @@ news, and publications pages, ready to fill in with your own content.
 **Demo:** <https://cboulanger.github.io/research-network-website-template>
 (built from this repo's generic placeholder content).
 
-A Node build step (`npm run build`) turns JSON/Markdown content — normally
-stored outside the repo (see "Storing content outside the repo" below), with
-the `content/` directory holding only generic demo data — into fully static,
-crawlable HTML in `public/`, the directory GitHub Pages (or GitLab Pages, if
-you host there instead) publishes. Node is a build-time tool only; the
-deployed site itself needs no Node, no backend, no secrets.
+## Quick start
 
-CI is defined both for GitHub Actions (`.github/workflows/ci.yml`) and GitLab
-CI (`.gitlab-ci.yml`), doing the same thing: validate content and run tests on
-every push/pull request, then build and publish `public/` to Pages on pushes
-to the default branch. Use whichever matches where you host the repo; the
-other one is simply inert on that forge.
+This guide takes you from the template to your own live website. You don't
+need to be a programmer, but you should be comfortable installing software
+and typing a few commands into a terminal. Allow about an hour.
 
-**Reusing this template for a real group:** the `content/` tree committed in
-this repo is generic placeholder/demo data only — real content is never
-hand-edited in the repo or added in a pull/merge request. Instead, point
-`CONTENT_PATH` (see `.env.example` and "Storing content outside the repo"
-below) at an external store holding your real data in the same shape (see
-`schema/`). This keeps content editing separate from code changes: anyone
-who can reach the content store can add a member or news item without
-touching git at all.
+**How it works:** your content (members, projects, events, news) lives as
+ordinary files on a file share of your own, not in this repository. A build
+step turns those files into a plain static website, which GitHub publishes
+for free (GitHub Pages). To change the site you edit the content with a
+local editor, then trigger a rebuild. The `content/` folder in this repo
+holds generic sample data only — real content is never edited in the repo.
+
+### 1. Create your copy and switch on GitHub Pages
+
+1. If you don't have a GitHub account yet, create a free one at
+   <https://github.com/signup>. Then sign in and click **Fork** on this
+   repository's page (or run `gh repo fork <owner>/<repo>`) and create the
+   fork. This gives you your own copy of the website code, which stays
+   linked to the original so that you can pick up later improvements (see
+   "Updating the website code" below).
+2. In your fork open the **Actions** tab and click "I understand my
+   workflows, go ahead and enable them" (GitHub disables them on forks by
+   default). Then open **Settings → Pages** and set "Build and
+   deployment → Source" to **GitHub Actions**.
+3. Back in the **Actions** tab, select the "CI" workflow and click
+   **Run workflow**. After a minute or two your site is live at
+   `https://<your-username>.github.io/<repository-name>`. It shows the
+   generic sample content — check that it looks like the demo.
+
+### 2. Get a WebDAV share for your content
+
+Your real content is kept on a **WebDAV** share: a shared folder that
+programs can read and write over the web. If you have an ownCloud or
+Nextcloud account (many universities provide one), you already have one;
+otherwise ask your IT administrator for "a WebDAV folder I can read and write
+to". You'll need:
+
+- the folder's **WebDAV URL** — in Nextcloud, open the folder, click its
+  "Details" panel and copy the WebDAV address (or build it as
+  `https://<your-nextcloud-host>/remote.php/dav/files/<username>/<path-to-folder>`);
+- a **username** and **password**. Instead of your main password, create an
+  app password (Nextcloud: Settings → Security → "Create new app password"),
+  which you can revoke later without changing your login.
+
+### 3. Copy the sample content to the share
+
+Download this repository as a ZIP (on GitHub: **Code → Download ZIP**; you'll
+use the same ZIP again in step 5) and copy the contents of its `content/`
+folder into your WebDAV folder, so that it contains:
+
+    data/     site.json, members.json, projects.json, events.json, news.json
+    pages/    longer write-ups (e.g. about.md)
+    images/   portraits, logo, favicon
+
+You'll replace the sample entries with real ones in step 8.
+
+### 4. Install Node.js
+
+Node.js (which includes `npm`) runs the build and editor tools on your
+computer. Download the "LTS" version (22 or newer) from <https://nodejs.org>
+and install it with the default options. Check it worked by opening a
+terminal (Windows: PowerShell; macOS: Terminal) and typing `node --version`.
+
+### 5. Unpack the project and configure it
+
+1. Unpack the ZIP from step 3 somewhere convenient. (Cloning with git works
+   too but isn't required.)
+2. In the unpacked folder, copy the file `.env.example` to `.env`. (Files
+   starting with a dot may be hidden; enable "show hidden files" if needed.)
+3. Open `.env` in a text editor and fill in:
+
+       CONTENT_PATH=<your WebDAV URL>
+       CONTENT_USERNAME=<your username>
+       CONTENT_PASSWORD=<your app password>
+
+   `.env` contains passwords: never share it or commit it to git.
+4. So that you can trigger a rebuild of the site from your computer
+   (step 10), create a GitHub personal access token (GitHub → Settings →
+   Developer settings → Personal access tokens; scope "repo", or
+   "Actions: write" for a fine-grained token) and add it to `.env`, together
+   with the name of your GitHub repository:
+
+       GITHUB_TOKEN=<your token>
+       GITHUB_REPOSITORY=<your-username>/<repository-name>
+
+### 6. Give GitHub access to your content
+
+GitHub builds the public site, so it needs the same three settings. In your
+repository open **Settings → Secrets and variables → Actions** and add:
+
+| Name               | Where         | Value             |
+|--------------------|---------------|-------------------|
+| `CONTENT_PATH`     | *Variables* tab | your WebDAV URL |
+| `CONTENT_USERNAME` | *Secrets* tab   | your username   |
+| `CONTENT_PASSWORD` | *Secrets* tab   | your app password |
+
+### 7. Install and start the editor
+
+In a terminal, change into the unpacked folder and run:
+
+    npm install
+    npm run edit
+
+`npm install` downloads the required tools (needed once). `npm run edit`
+starts the local editor; open <http://127.0.0.1:4848> in your browser.
+
+### 8. Edit your content
+
+Use the editor to replace the sample members, projects, events and news with
+your own. Each change is saved straight to your WebDAV share. Press Ctrl+C in
+the terminal to stop the editor.
+
+### 9. Preview your site (optional)
+
+    npm run build
+
+This builds the site into the `public/` folder from your current content and
+reports any errors. Then open `public/index.html` in your browser to look at
+it. (Opening the file directly shows most of the site; the projects graph
+needs a local web server, see "Local preview" below.) You can skip this step
+if you just want to publish.
+
+### 10. Publish
+
+    npm run deploy
+
+This asks GitHub to rebuild the public site. GitHub fetches your content from
+the WebDAV share itself, so nothing needs to be uploaded; a minute or two
+later the changes are live. Instead of the command you can click **Deploy
+site** in the editor, which does the same. Repeat steps 7–10 whenever you
+want to update the site.
+
+### Updating the website code
+
+Improvements to the template are published in the original repository
+(<https://github.com/cboulanger/research-network-website-template>). Your
+content is stored separately, so updating the code never touches it. There
+are two copies of the code to update:
+
+**1. The website code on GitHub** (this is what builds your public site).
+Synchronize your fork with the original:
+
+1. Open your fork on GitHub.
+2. Above the file list, click **Sync fork**. If GitHub says the fork is
+   "up to date", there is nothing to do.
+3. Click **Update branch**. (If GitHub reports conflicts, you have changed
+   files in your fork; either discard those changes or ask someone with git
+   experience for help.)
+
+The workflow runs by itself after the sync; you can also click **Deploy
+site** in the editor to rebuild the site right away. From the command line
+you can do the same with `gh repo sync <your-username>/<repository-name>`.
+
+**2. The local copy you use for the editor.** This only affects
+`npm run edit` and the local tools, not the public site. Download the ZIP of
+*your* (freshly synced) fork, unpack it, copy your `.env` file from the old
+folder into the new one, and run `npm install`. The old folder can then be
+deleted.
+
+The rest of this document is reference material.
 
 ## Local preview
 
@@ -44,8 +184,7 @@ content or code change — what's in `public/` is exactly what ships.
     npm run validate   # JSON Schema validation of content/data/*.json
     npm test            # unit tests for pure logic (node --test)
 
-Both require Node.js locally (only for tooling — the deployed site itself
-needs no Node, no backend, no secrets).
+Both need Node.js locally (tooling only; the deployed site needs none).
 
 ## Local data editor
 
@@ -55,11 +194,46 @@ Starts a local-only admin UI at `http://127.0.0.1:4848` (override the port
 with `EDIT_PORT`) for editing `members.json`, `projects.json`,
 `events.json`, and `news.json` — schema-driven forms with create/edit/delete,
 plus a search-and-add picker for a project's participants. It reads and
-writes the same `CONTENT_PATH` the build uses (local directory or a WebDAV
-store — see "Storing content outside the repo" below), writing each change
-immediately, so point it at a copy of your content if you want to try it out
-without touching real data. It has no authentication of its own — it's meant
-to run on your own machine, not be exposed beyond `127.0.0.1`.
+writes the same `CONTENT_PATH` the build uses, saving each change
+immediately, so point it at a copy of your content to try it out. It has no
+authentication of its own — run it on your own machine only, never expose it
+beyond `127.0.0.1`.
+
+### Deploy button and site link
+
+The sidebar's **Deploy site** button (`POST /api/deploy`) first validates every
+collection the editor manages against its schema — the same check as
+`npm run validate` — and refuses to trigger a rebuild if any of it fails,
+listing the errors instead, so CI is never started on content it would reject.
+It then asks each forge whose token is set (`GITHUB_TOKEN`, `GITLAB_TOKEN`) to
+rebuild; see `.env.example` for the settings.
+
+Below the button, an **Open the site** link (`GET /api/site`) points at the
+published site. The address is resolved in this order:
+
+1. `SITE_URL`, if set. Use it to override the lookup, e.g. when the site is
+   reverse-proxied under a different domain than the forge's own Pages address.
+2. GitHub: the `html_url` from the repository's Pages settings
+   (`GET /repos/{owner}/{name}/pages`); if the token cannot read them, the
+   default `https://{owner}.github.io/{name}/`.
+3. GitLab: the `url` from the project's Pages API
+   (`GET /projects/:id/pages`, available on recent GitLab versions).
+
+If none of these yields an address (no token, an older GitLab, an API error)
+the link is simply not shown; a failed lookup never affects deploying.
+
+### Editor hints in the schemas
+
+The editor takes its presentation hints from an `x-editor` keyword in
+`schema/*.schema.json` (ignored by validation; registered with Ajv in
+`edit-server.mjs` and `scripts/lib/ajv-editor-keyword.cjs`):
+
+- On a property: `"widget": "date"` (date picker, empty value defaults to
+  today, stored as `YYYY-MM-DD`), `"widget": "textarea"` with `"rows": N`,
+  `"readOnly": true` (ids; assigned by the server on create), `"placeholder"`.
+- On the collection: `"sort": { "by": "date" | ["lastname", "firstname"],
+  "order": "asc" | "desc" }` and `"columns": ["date", "title"]` (property names shown
+  as aligned columns in the record list). Sorting is display-only; the JSON files keep their order.
 
 ## Content shape
 
@@ -141,57 +315,22 @@ committed `content/` demo. It accepts either:
   the content store (no git, no pull requests, no code access needed), and
   both your local builds and CI fetch the same live data.
 
-### Setting up a WebDAV content store
-
-Any WebDAV server works (most cloud file-sync services, including
-Nextcloud, expose one); Nextcloud is used here as the example:
-
-1. In Nextcloud, create a folder for the site's content and, inside it,
-   three subfolders: `data/`, `pages/`, `images/`.
-2. Add the required files to `data/`: `site.json`, `members.json`,
-   `projects.json`, `events.json`, `news.json` (and, optionally,
-   `publications.json`) — each validated against its schema in `schema/`.
-   Add any linked write-ups to `pages/` and any portraits/logos/favicons to
-   `images/`, as described above.
-3. Get the folder's WebDAV URL: in the Nextcloud web UI, open the folder,
-   click the folder's "Details" panel, and copy its WebDAV address (or
-   construct it as `https://<your-nextcloud-host>/remote.php/dav/files/<username>/<path-to-folder>`).
-4. If the folder isn't publicly shared, create an app password (Nextcloud
-   Settings → Security → "Create new app password") rather than using your
-   main account password — this is what goes in `CONTENT_USERNAME`/
-   `CONTENT_PASSWORD`.
-5. Set `CONTENT_PATH` to that WebDAV URL:
-
-       cp .env.example .env
-       # edit .env: CONTENT_PATH=<the WebDAV URL>, CONTENT_USERNAME=..., CONTENT_PASSWORD=...
-       npm run build
-
-   In CI, set the same three as repository variables/secrets (see "Using
-   this as a template on GitHub" below) rather than committing `.env`.
-
 On a fetch failure or timeout (`CONTENT_TIMEOUT_MS`, default 30s), the build
 fails before writing any output, so the previous build (and the currently
 deployed site) is left in place rather than publishing a broken or empty
 site.
 
-## Local tooling credentials
+See the Quick start (steps 2, 3, 5 and 6) for setting up a WebDAV store with
+Nextcloud and wiring it into `.env` and the GitHub repository.
 
-Copy `.env.example` to `.env` and fill in `GITHUB_TOKEN` and/or
-`GITLAB_TOKEN`/`GITLAB_HOST` for local forge API tooling (`npm run deploy`
-triggers a rebuild on every forge whose token is set — both at once if both
-are set), and/or
-`CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` to build from real or
-remote content. Never commit `.env` or paste any of its values into
-chat/logs.
+## Hosting on GitLab
 
-## Using this as a template on GitHub
-
-Click "Use this template" on the GitHub repo page (or `gh repo create
-<name> --template <owner>/<repo>`) to get your own copy with a clean git
-history. Then, in the new repo's Settings:
-
-- **Pages**: set "Build and deployment" source to "GitHub Actions" (the
-  included workflow handles the rest on every push to the default branch).
-- **Actions → General**: if you use `CONTENT_PATH`/`CONTENT_USERNAME`/
-  `CONTENT_PASSWORD` for real (non-generic) content, add them as repository
-  variables/secrets — `CONTENT_PATH` as a variable, the other two as secrets.
+CI is defined for both GitHub Actions (`.github/workflows/ci.yml`) and GitLab
+CI (`.gitlab-ci.yml`); both validate content and run tests on every
+push/pull request, then build and publish `public/` to Pages on pushes to the
+default branch. Use whichever matches where you host the repo; the other is
+inert. On GitLab, set `CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` as
+masked CI/CD variables, and put `GITLAB_TOKEN`, `GITLAB_HOST` (and, without
+git, `GITLAB_PROJECT=group/name`) in `.env` for
+`npm run deploy`, which triggers a rebuild on every forge whose token is set.
+Never commit `.env` or paste any of its values into chat/logs.

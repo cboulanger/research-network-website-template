@@ -8,6 +8,10 @@ export async function fetchWithTimeout(url, options = {}, { timeoutMs, fetchImpl
     if (err?.name === 'TimeoutError') {
       throw new Error(`Request to ${url} timed out after ${timeoutMs / 1000}s`);
     }
+    if (err?.message === 'fetch failed' && err.cause) {
+      const cause = err.cause;
+      throw new Error(`Request to ${url} failed: ${cause.code ? `${cause.code} ` : ''}${cause.message}`, { cause });
+    }
     throw err;
   }
 }

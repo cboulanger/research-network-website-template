@@ -5,15 +5,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createServer } from '../scripts/edit-server.mjs';
 
-async function startTestServer(fixture) {
+async function startTestServer(fixture, options = {}) {
   const contentPath = await mkdtemp(path.join(tmpdir(), 'edit-content-'));
   await mkdir(path.join(contentPath, 'data'), { recursive: true });
   await writeFile(path.join(contentPath, 'data', 'members.json'), JSON.stringify(fixture.members ?? []));
   await writeFile(path.join(contentPath, 'data', 'projects.json'), JSON.stringify(fixture.projects ?? []));
   await writeFile(path.join(contentPath, 'data', 'events.json'), JSON.stringify(fixture.events ?? []));
   await writeFile(path.join(contentPath, 'data', 'news.json'), JSON.stringify(fixture.news ?? []));
+  await writeFile(
+    path.join(contentPath, 'data', 'site.json'),
+    JSON.stringify(fixture.site ?? { bannerLabel: 'B', title: 'T', subtitle: 'S' })
+  );
 
-  const server = createServer({ contentPath, schemaDir: 'schema', editorDir: 'scripts/editor' });
+  const server = createServer({ contentPath, schemaDir: 'schema', editorDir: 'scripts/editor', ...options });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
@@ -26,12 +30,34 @@ async function startTestServer(fixture) {
   };
 }
 
-test('GET /api/types lists the four array-of-items content types', async () => {
+test('GET /api/types lists every editable content type', async () => {
   const ctx = await startTestServer({});
   try {
     const res = await fetch(`${ctx.base}/api/types`);
     const body = await res.json();
-    assert.deepEqual(body.map((t) => t.name).sort(), ['events', 'members', 'news', 'projects']);
+    assert.deepEqual(body.map((t) => t.name).sort(), ['events', 'members', 'news', 'projects', 'publications', 'site']);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('singleton types (site, publications) are read and replaced as a single object', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const put = (name, body) =>
+      fetch(`${ctx.base}/api/data/${name}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+    const site = await (await fetch(`${ctx.base}/api/data/site`)).json();
+    assert.equal(site.title, 'T');
+    assert.equal((await put('site', { ...site, title: 'New' })).status, 200);
+    assert.equal((await (await fetch(`${ctx.base}/api/data/site`)).json()).title, 'New');
+    assert.equal((await put('site', { title: 'incomplete' })).status, 400);
+
+    // publications.json is optional: absent reads as {}, and PUT creates it.
+    assert.deepEqual(await (await fetch(`${ctx.base}/api/data/publications`)).json(), {});
+    assert.equal((await put('publications', { zoteroGroup: '2211429', style: 'apa' })).status, 200);
+    assert.equal((await (await fetch(`${ctx.base}/api/data/publications`)).json()).style, 'apa');
+    assert.equal((await fetch(`${ctx.base}/api/data/site`, { method: 'POST', body: '{}' })).status, 405);
   } finally {
     await ctx.close();
   }
@@ -204,6 +230,73 @@ test('GET / serves the editor HTML page', async () => {
     const res = await fetch(`${ctx.base}/`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/html/);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/data/projects generates an id from the title and suffixes collisions', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const post = () =>
+      fetch(`${ctx.base}/api/data/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Legal Histories', participants: [] }),
+      });
+    assert.equal((await (await post()).json()).id, 'legal-histories');
+    assert.equal((await (await post()).json()).id, 'legal-histories-2');
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/deploy returns the results of the deploy function', async () => {
+  const ctx = await startTestServer({}, { deployFn: async () => [{ name: 'github', ok: true, message: 'ok' }] });
+  try {
+    const res = await fetch(`${ctx.base}/api/deploy`, { method: 'POST' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { results: [{ name: 'github', ok: true, message: 'ok' }] });
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/deploy returns 400 when deploying is not configured', async () => {
+  const ctx = await startTestServer({}, {
+    deployFn: async () => {
+      throw new Error('Set GITHUB_TOKEN');
+    },
+  });
+  try {
+    const res = await fetch(`${ctx.base}/api/deploy`, { method: 'POST' });
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /GITHUB_TOKEN/);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/deploy refuses to deploy invalid content and does not call the deploy function', async () => {
+  let called = false;
+  const ctx = await startTestServer({ news: [{ bogus: true }] }, { deployFn: async () => { called = true; return []; } });
+  try {
+    const res = await fetch(`${ctx.base}/api/deploy`, { method: 'POST' });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.match(body.error, /news failed schema validation/);
+    assert.ok(Array.isArray(body.details) && body.details.length > 0);
+    assert.equal(called, false);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/site returns the resolved site URL', async () => {
+  const ctx = await startTestServer({}, { siteUrlFn: async () => 'https://site.example/' });
+  try {
+    const res = await fetch(`${ctx.base}/api/site`);
+    assert.deepEqual(await res.json(), { url: 'https://site.example/' });
   } finally {
     await ctx.close();
   }
