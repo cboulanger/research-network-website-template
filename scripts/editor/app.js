@@ -7,6 +7,17 @@ const state = {
   editingKey: null,
 };
 
+// Object schemas (site, publications) are a single record edited in place;
+// array schemas are collections listed in a table.
+function isSingleton() {
+  return state.currentType.kind === 'object';
+}
+
+// The schema describing one record's fields.
+function recordSchema() {
+  return isSingleton() ? state.schema : state.schema.items;
+}
+
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -36,37 +47,136 @@ async function loadTypes() {
   });
 }
 
+function navLink(name) {
+  return document.querySelector(`#type-nav a[data-type="${name}"]`);
+}
+
+// Flags a category whose data cannot be loaded (e.g. the content host is
+// unreachable) with an icon in the nav; the tooltip carries the reason.
+function setLoadFailed(name, err) {
+  const link = navLink(name);
+  if (!link) return;
+  link.classList.toggle('load-failed', Boolean(err));
+  if (err) link.title = `Could not load ${name}: ${err.message}`;
+  else link.removeAttribute('title');
+}
+
+function showLoadError(name, err) {
+  const box = document.getElementById('load-error');
+  box.innerHTML = `<span></span> <button type="button" id="retry-button">Retry</button>`;
+  box.firstChild.textContent = `Could not load ${name}: ${err.message}`;
+  box.querySelector('#retry-button').addEventListener('click', () => selectType(name));
+  box.hidden = false;
+  document.getElementById('table-body').hidden = true;
+  document.getElementById('new-button').hidden = true;
+  document.getElementById('form-panel').hidden = true;
+}
+
+// Checks every category up front so failures are flagged in the nav without
+// having to click each one. Requests run in parallel.
+function probeTypes() {
+  for (const { name } of state.types) {
+    fetchJSON(`/api/data/${name}`)
+      .then(() => setLoadFailed(name, null))
+      .catch((err) => setLoadFailed(name, err));
+  }
+}
+
 async function selectType(name) {
   state.currentType = state.types.find((t) => t.name === name);
-  state.schema = await fetchJSON(`/api/schema/${name}`);
-  state.records = await fetchJSON(`/api/data/${name}`);
-  if (name === 'projects') {
-    state.members = await fetchJSON('/api/data/members');
-  }
   document.querySelectorAll('#type-nav a').forEach((a) => a.classList.toggle('active', a.dataset.type === name));
   document.getElementById('type-title').textContent = name;
-  renderTable();
-  hideForm();
+  document.getElementById('load-error').hidden = true;
+  document.getElementById('table-body').hidden = true;
+  document.getElementById('new-button').hidden = true;
+  document.getElementById('form-panel').hidden = true;
+  const loading = document.getElementById('loading');
+  loading.hidden = false;
+  // Rapid clicks can leave several loads in flight; only the latest may render.
+  const token = (selectType.latest = Symbol());
+  try {
+    state.schema = await fetchJSON(`/api/schema/${name}`);
+    state.records = await fetchJSON(`/api/data/${name}`);
+    if (name === 'projects') {
+      state.members = await fetchJSON('/api/data/members');
+    }
+  } catch (err) {
+    setLoadFailed(name, err);
+    if (selectType.latest !== token) return;
+    loading.hidden = true;
+    showLoadError(name, err);
+    return;
+  }
+  setLoadFailed(name, null);
+  if (selectType.latest !== token) return;
+  loading.hidden = true;
+  document.getElementById('table-body').hidden = isSingleton();
+  document.getElementById('new-button').hidden = isSingleton();
+  if (isSingleton()) {
+    renderForm(state.records);
+    hideFormError();
+    document.getElementById('form-panel').hidden = false;
+    document.getElementById('form-title').textContent = 'Properties';
+    state.editingKey = null;
+  } else {
+    renderTable();
+    hideForm();
+  }
 }
 
 function recordKey(record, index) {
   return state.currentType.keyField ? record[state.currentType.keyField] : String(index);
 }
 
-function recordLabel(record) {
-  if (record.title) return record.title;
-  if (record.firstname || record.lastname) return `${record.firstname || ''} ${record.lastname || ''}`.trim();
-  return record.date || JSON.stringify(record).slice(0, 40);
+// Presentation hints live in the schema under "x-editor": on the array schema
+// (sort, columns) and on individual properties (widget, rows, readOnly, placeholder).
+function editorHints(schema) {
+  return schema?.['x-editor'] || {};
+}
+
+function todayISO() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function memberName(member) {
+  return `${member.lastname}, ${member.firstname}`;
+}
+
+// Columns shown in the record list: the schema's "columns" hint, else the first property.
+function listColumns() {
+  const columns = editorHints(state.schema).columns;
+  return columns?.length ? columns : Object.keys(recordSchema().properties).slice(0, 1);
+}
+
+// Returns [record, index] pairs in display order; the original index is kept
+// because index-keyed collections (events, news) address records by it.
+function sortedEntries() {
+  const entries = state.records.map((record, index) => [record, index]);
+  const sort = editorHints(state.schema).sort;
+  if (!sort) return entries;
+  const fields = [].concat(sort.by);
+  const direction = sort.order === 'desc' ? -1 : 1;
+  return entries.sort(([a], [b]) => {
+    for (const field of fields) {
+      const cmp = String(a[field] ?? '').localeCompare(String(b[field] ?? ''), undefined, { sensitivity: 'base' });
+      if (cmp !== 0) return cmp * direction;
+    }
+    return 0;
+  });
 }
 
 function renderTable() {
-  document.querySelector('#records-table thead').innerHTML = '<tr><th>Record</th><th>Actions</th></tr>';
+  const columns = listColumns();
+  document.querySelector('#records-table thead').innerHTML =
+    `<tr>${columns.map((c) => `<th>${escapeHTML(c)}</th>`).join('')}<th>Actions</th></tr>`;
   const tbody = document.querySelector('#records-table tbody');
-  tbody.innerHTML = state.records
-    .map((record, index) => {
+  tbody.innerHTML = sortedEntries()
+    .map(([record, index]) => {
       const key = recordKey(record, index);
       return `<tr>
-        <td>${escapeHTML(recordLabel(record))}</td>
+        ${columns.map((c) => `<td class="cell-${escapeHTML(c)}">${escapeHTML(record[c])}</td>`).join('')}
         <td class="row-actions">
           <button type="button" data-action="edit" data-key="${escapeHTML(key)}">Edit</button>
           <button type="button" data-action="delete" data-key="${escapeHTML(key)}">Delete</button>
@@ -81,9 +191,18 @@ function findRecordByKey(key) {
 }
 
 function hideFormError() {
+  const message = document.getElementById('form-message');
+  message.hidden = true;
+  message.textContent = '';
   const el = document.getElementById('form-error');
   el.hidden = true;
   el.textContent = '';
+}
+
+function showFormMessage(message) {
+  const el = document.getElementById('form-message');
+  el.textContent = message;
+  el.hidden = false;
 }
 
 function showFormError(message, details) {
@@ -145,8 +264,6 @@ function buildParticipantPicker(participantIds) {
 
   let currentIds = [...participantIds];
 
-  const memberName = (member) => `${member.firstname} ${member.lastname}`;
-
   function renderList() {
     list.innerHTML = '';
     currentIds.forEach((id) => {
@@ -171,7 +288,7 @@ function buildParticipantPicker(participantIds) {
     results.innerHTML = '';
     if (!q) return;
     state.members
-      .filter((m) => !currentIds.includes(m.id) && memberName(m).toLowerCase().includes(q))
+      .filter((m) => !currentIds.includes(m.id) && `${m.firstname} ${memberName(m)}`.toLowerCase().includes(q))
       .forEach((m) => {
         const row = document.createElement('div');
         const nameSpan = document.createElement('span');
@@ -200,33 +317,43 @@ function buildParticipantPicker(participantIds) {
 function buildField(key, propSchema, value, required) {
   const wrapper = document.createElement('div');
   wrapper.className = 'field';
-  const isAutoId = state.currentType.name === 'members' && key === 'id';
+  const hints = editorHints(propSchema);
+  const readOnly = Boolean(hints.readOnly);
   const label = document.createElement('label');
-  label.textContent = key + (required && !isAutoId ? ' *' : '');
+  label.textContent = key + (required && !readOnly ? ' *' : '');
   label.setAttribute('for', `field-${key}`);
   wrapper.appendChild(label);
+  if (propSchema.description) {
+    const help = document.createElement('div');
+    help.className = 'field-help';
+    help.textContent = propSchema.description;
+    wrapper.appendChild(help);
+  }
 
   if (propSchema.type === 'array' && propSchema.items?.type === 'string') {
     wrapper.appendChild(buildStringListField(key, value || []));
     return wrapper;
   }
 
-  const input = key === 'description' ? document.createElement('textarea') : document.createElement('input');
-  if (input.tagName === 'INPUT') input.type = 'text';
+  const input = hints.widget === 'textarea' ? document.createElement('textarea') : document.createElement('input');
+  if (input.tagName === 'INPUT') input.type = hints.widget === 'date' ? 'date' : 'text';
+  if (hints.rows) input.rows = hints.rows;
   input.id = `field-${key}`;
   input.name = key;
-  input.value = value ?? '';
-  if (propSchema.pattern) input.pattern = propSchema.pattern;
-  if (required && !isAutoId) input.required = true;
-  if (isAutoId) input.placeholder = 'Leave blank to auto-generate from name';
+  input.value = value ?? (hints.widget === 'date' ? todayISO() : '');
+  // type=date ignores pattern and always yields YYYY-MM-DD, so only text inputs get it.
+  if (propSchema.pattern && input.type === 'text') input.pattern = propSchema.pattern;
+  if (required && !readOnly) input.required = true;
+  if (readOnly) input.readOnly = true;
+  if (hints.placeholder) input.placeholder = hints.placeholder;
   wrapper.appendChild(input);
   return wrapper;
 }
 
 function renderForm(record) {
   const form = document.getElementById('record-form');
-  const properties = state.schema.items.properties;
-  const required = new Set(state.schema.items.required || []);
+  const properties = recordSchema().properties;
+  const required = new Set(recordSchema().required || []);
   form.innerHTML = '';
 
   Object.entries(properties).forEach(([key, propSchema]) => {
@@ -239,9 +366,11 @@ function renderForm(record) {
 
   const actions = document.createElement('div');
   actions.className = 'field';
-  actions.innerHTML = '<button type="submit">Save</button> <button type="button" id="cancel-button">Cancel</button>';
+  actions.innerHTML = isSingleton()
+    ? '<button type="submit">Save</button>'
+    : '<button type="submit">Save</button> <button type="button" id="cancel-button">Cancel</button>';
   form.appendChild(actions);
-  form.querySelector('#cancel-button').addEventListener('click', hideForm);
+  form.querySelector('#cancel-button')?.addEventListener('click', hideForm);
 }
 
 function openForm(key) {
@@ -259,7 +388,7 @@ function hideForm() {
 
 function collectFormData() {
   const form = document.getElementById('record-form');
-  const properties = state.schema.items.properties;
+  const properties = recordSchema().properties;
   const data = {};
   Object.keys(properties).forEach((key) => {
     if (state.currentType.name === 'projects' && key === 'participants') {
@@ -269,7 +398,9 @@ function collectFormData() {
     const propSchema = properties[key];
     if (propSchema.type === 'array' && propSchema.items?.type === 'string') {
       const container = form.querySelector(`[data-field="${key}"]`);
-      data[key] = [...container.querySelectorAll('input')].map((i) => i.value).filter((v) => v.trim() !== '');
+      const items = [...container.querySelectorAll('input')].map((i) => i.value).filter((v) => v.trim() !== '');
+      // Optional lists in a singleton are omitted when empty (they often have minItems: 1).
+      if (items.length || !isSingleton()) data[key] = items;
       return;
     }
     const input = form.querySelector(`#field-${key}`);
@@ -311,6 +442,16 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
   const data = collectFormData();
   const name = state.currentType.name;
   try {
+    if (isSingleton()) {
+      await fetchJSON(`/api/data/${name}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      await selectType(name);
+      showFormMessage('Saved.');
+      return;
+    }
     if (state.editingKey === null) {
       await fetchJSON(`/api/data/${name}`, {
         method: 'POST',
@@ -330,6 +471,38 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
   }
 });
 
+document.getElementById('deploy-button').addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  const status = document.getElementById('deploy-status');
+  button.disabled = true;
+  status.className = 'deploy-status';
+  status.textContent = 'Requesting rebuild…';
+  try {
+    const { results } = await fetchJSON('/api/deploy', { method: 'POST' });
+    status.textContent = results.map((r) => `[${r.name}] ${r.ok ? 'rebuild started' : r.message}`).join('\n');
+    if (results.some((r) => !r.ok)) status.classList.add('error');
+    else status.textContent += '\nThe site will be updated in a minute or two.';
+  } catch (err) {
+    status.classList.add('error');
+    const details = Array.isArray(err.details)
+      ? err.details.map((d) => `\n• ${d.instancePath || '/'} ${d.message}`).join('')
+      : '';
+    status.textContent = err.message + details;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+fetchJSON('/api/site')
+  .then(({ url }) => {
+    if (!url) return;
+    const link = document.getElementById('site-link');
+    link.href = url;
+    link.hidden = false;
+  })
+  .catch(() => {}); // the link is a convenience; the editor works without it
+
 loadTypes().then(() => {
   if (state.types.length) selectType(state.types[0].name);
+  probeTypes();
 });

@@ -8,18 +8,28 @@
 </head>
 <body>
 <div class="layout">
-  <nav id="type-nav" class="type-nav"></nav>
+  <div class="sidebar">
+    <nav id="type-nav" class="type-nav"></nav>
+    <div class="deploy-box">
+      <button id="deploy-button" type="button">Deploy site</button>
+      <div id="deploy-status" class="deploy-status" role="status"></div>
+      <a id="site-link" class="site-link" href="#" target="_blank" rel="noopener" hidden>Open the site ↗</a>
+    </div>
+  </div>
   <main class="main">
     <div class="table-panel">
       <div class="table-header">
         <h1 id="type-title"></h1>
         <button id="new-button" type="button">New</button>
       </div>
-      <table id="records-table"><thead></thead><tbody></tbody></table>
+      <div id="loading" class="loading" hidden role="status">Loading data…</div>
+      <div id="load-error"class="form-error" hidden role="alert"></div>
+      <div id="table-body"><table id="records-table"><thead></thead><tbody></tbody></table></div>
     </div>
     <div id="form-panel" class="form-panel" hidden>
       <h2 id="form-title"></h2>
       <div id="form-error" class="form-error" hidden></div>
+      <div id="form-message" class="form-message" hidden role="status"></div>
       <form id="record-form"></form>
     </div>
   </main>
