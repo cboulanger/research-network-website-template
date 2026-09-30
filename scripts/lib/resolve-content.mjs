@@ -1,12 +1,9 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-
-function isRemote(contentPath) {
-  return /^https?:\/\//i.test(contentPath);
-}
+import { isRemoteContentPath } from './content-store.mjs';
 
 export async function resolveContent(contentPath = process.env.CONTENT_PATH || './content') {
-  if (isRemote(contentPath)) {
+  if (isRemoteContentPath(contentPath)) {
     const { materializeRemote } = await import('./resolve-content-remote.mjs');
     return materializeRemote(contentPath.replace(/\/+$/, ''));
   }

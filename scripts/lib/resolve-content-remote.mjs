@@ -3,17 +3,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fetchWithTimeout, timeoutFromEnv } from './fetch-with-timeout.mjs';
 import { isExternalLink } from '../../assets/js/shared.js';
+import { authHeaders, readContentFile } from './content-store.mjs';
 
 const DATA_FILES = ['site', 'members', 'projects', 'events', 'news'];
 const OPTIONAL_DATA_FILES = ['publications'];
-
-function authHeaders() {
-  const username = process.env.CONTENT_USERNAME;
-  const password = process.env.CONTENT_PASSWORD;
-  if (!username && !password) return {};
-  const token = Buffer.from(`${username || ''}:${password || ''}`).toString('base64');
-  return { Authorization: `Basic ${token}` };
-}
 
 function fetchContent(url) {
   return fetchWithTimeout(url, { headers: authHeaders() }, { timeoutMs: timeoutFromEnv('CONTENT_TIMEOUT_MS', 30000) });
@@ -43,7 +36,7 @@ export async function materializeRemote(baseUrl) {
 
   const data = {};
   for (const name of DATA_FILES) {
-    const text = await (await fetchOk(`${baseUrl}/data/${name}.json`)).text();
+    const text = await readContentFile(baseUrl, `data/${name}.json`);
     await writeFile(path.join(dir, 'data', `${name}.json`), text, 'utf8');
     data[name] = JSON.parse(text);
   }
@@ -57,7 +50,7 @@ export async function materializeRemote(baseUrl) {
   }
 
   for (const name of referencedPageNames(data.news, data.events)) {
-    const text = await (await fetchOk(`${baseUrl}/pages/${name}`)).text();
+    const text = await readContentFile(baseUrl, `pages/${name}`);
     await writeFile(path.join(dir, 'pages', name), text, 'utf8');
   }
 
