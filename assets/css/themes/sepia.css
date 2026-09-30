@@ -1,0 +1,14 @@
+:root {
+  --color-bg: #fbf6ee;
+  --color-bg-alt: #f3ead9;
+  --color-surface: #fffdf8;
+  --color-text: #3a2f22;
+  --color-muted: #7a6a55;
+  --color-accent: #9c5b2e;
+  --color-on-accent: #ffffff;
+  --color-border: #e6d9c2;
+  --color-border-strong: #cbb692;
+  --color-overlay: rgba(40, 28, 14, 0.5);
+  --color-tooltip-bg: #3a2f22;
+  --color-tooltip-text: #fbf6ee;
+}

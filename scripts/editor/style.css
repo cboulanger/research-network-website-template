@@ -27,7 +27,7 @@ td { white-space: pre-line; vertical-align: top; }
 .form-error { background: #fde8e8; border: 1px solid #f5b5b5; padding: 0.5rem; margin-bottom: 1rem; white-space: pre-wrap; }
 .field { margin-bottom: 0.8rem; }
 .field label { display: block; font-weight: bold; margin-bottom: 0.2rem; }
-.field input, .field textarea { width: 100%; padding: 0.3rem; }
+.field input, .field textarea, .field select { width: 100%; padding: 0.3rem; }
 .field input[readonly] { background: #f0f0f0; color: #555; }
 .array-row { display: flex; gap: 0.4rem; margin-bottom: 0.3rem; }
 .array-row input { flex: 1; }

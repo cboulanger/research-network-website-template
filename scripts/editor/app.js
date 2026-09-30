@@ -359,6 +359,24 @@ function buildField(key, propSchema, value, required) {
     return wrapper;
   }
 
+  if (Array.isArray(propSchema.enum)) {
+    const select = document.createElement('select');
+    select.id = `field-${key}`;
+    select.name = key;
+    const selected = value ?? propSchema.default ?? propSchema.enum[0];
+    for (const option of propSchema.enum) {
+      const opt = document.createElement('option');
+      opt.value = option;
+      opt.textContent = option;
+      if (option === selected) opt.selected = true;
+      select.appendChild(opt);
+    }
+    if (required && !readOnly) select.required = true;
+    if (readOnly) select.disabled = true;
+    wrapper.appendChild(select);
+    return wrapper;
+  }
+
   const input = hints.widget === 'textarea' ? document.createElement('textarea') : document.createElement('input');
   if (input.tagName === 'INPUT') input.type = hints.widget === 'date' ? 'date' : 'text';
   if (hints.rows) input.rows = hints.rows;

@@ -17,6 +17,21 @@ import { renderMembers, renderMemberList, participantSlugs } from '../assets/js/
 import { buildGraphData, renderListView, sanitizeGraphData } from '../assets/js/projects-graph.js';
 
 const PUBLIC_DIR = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public');
+const KNOWN_THEMES = ['light', 'dark', 'slate', 'forest', 'sepia'];
+
+async function writeThemedCSS(site) {
+  let theme = site.theme || 'light';
+  if (!KNOWN_THEMES.includes(theme)) {
+    console.warn(`Unknown theme "${theme}", falling back to "light"`);
+    theme = 'light';
+  }
+  const [themeCSS, baseCSS] = await Promise.all([
+    readFile(path.join('assets', 'css', 'themes', `${theme}.css`), 'utf8'),
+    readFile(path.join('assets', 'css', 'base.css'), 'utf8'),
+  ]);
+  await mkdir(path.join(PUBLIC_DIR, 'assets', 'css'), { recursive: true });
+  await writeFile(path.join(PUBLIC_DIR, 'assets', 'css', 'style.css'), `${themeCSS}\n${baseCSS}`);
+}
 
 async function loadContent(contentDir) {
   const readJSON = async (name) => JSON.parse(await readFile(path.join(contentDir, 'data', `${name}.json`), 'utf8'));
@@ -305,7 +320,7 @@ async function main() {
   await buildPagesDocs(content);
   await buildProjectsPage(content);
 
-  await cp('assets/css', path.join(PUBLIC_DIR, 'assets', 'css'), { recursive: true });
+  await writeThemedCSS(content.site);
   await cp(path.join(content.contentDir, 'images'), path.join(PUBLIC_DIR, 'images'), { recursive: true });
   await mkdir(path.join(PUBLIC_DIR, 'assets', 'js'), { recursive: true });
   for (const file of ['members.js', 'projects-graph.js', 'page-back-link.js', 'shared.js', 'publications.js']) {

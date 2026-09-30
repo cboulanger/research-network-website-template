@@ -16,9 +16,7 @@ Chair: Ada Adler, Institute for Legal History<br>
 ## Membership & mailing list
 
 To join the mailing list, send a blank email to the list's subscribe
-address, or use the <a href="#" target="_blank" rel="noopener">listinfo page</a>. Unsubscribing from the list is
-treated as leaving the network. Formal membership requires IACLS
-membership.
+address, or use the <a href="#" target="_blank" rel="noopener">listinfo page</a>.
 
 ## Meetings
 

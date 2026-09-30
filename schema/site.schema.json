@@ -9,6 +9,12 @@
     "title": { "type": "string", "minLength": 1 },
     "subtitle": { "type": "string", "minLength": 1 },
     "favicon": { "type": "string", "minLength": 1 },
-    "logo": { "type": "string", "minLength": 1 }
+    "logo": { "type": "string", "minLength": 1 },
+    "theme": {
+      "type": "string",
+      "enum": ["light", "dark", "slate", "forest", "sepia"],
+      "default": "light",
+      "description": "Visual theme used for the built site."
+    }
   }
 }

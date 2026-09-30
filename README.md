@@ -258,7 +258,9 @@ it on every push).
 
 - `site.json`: site-wide text and branding (nav banner label, landing page
   title/subtitle, optional `favicon`/`logo` filenames pointing at the
-  `images/` directory).
+  `images/` directory), plus an optional `theme` (one of `light` (default),
+  `dark`, `slate`, `forest`, `sepia`) selecting which stylesheet under
+  `assets/css/themes/` the build uses.
 - `members.json`: `id` (`{lastname-slug}-{firstname-slug}`, e.g.
   `adler-ada`; a numeric suffix like `-2` resolves a same-name collision)
   is the unique id, referenced by `projects[].participants` and used as
