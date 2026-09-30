@@ -15,7 +15,7 @@
       "image_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
       "participants": {
         "type": "array",
-        "items": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }
+        "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
       }
     }
   }

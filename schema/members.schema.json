@@ -5,8 +5,13 @@
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["lastname", "firstname", "affiliation", "email"],
+    "required": ["id", "lastname", "firstname", "affiliation", "email"],
     "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "description": "{lastname-slug}-{firstname-slug}, e.g. doe-jane; a numeric suffix (doe-jane-2) resolves collisions"
+      },
       "lastname": { "type": "string", "minLength": 1 },
       "firstname": { "type": "string", "minLength": 1 },
       "affiliation": { "type": "string", "minLength": 1 },
