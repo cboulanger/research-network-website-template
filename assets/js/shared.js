@@ -30,14 +30,14 @@ export function resolvePortraitUrl(portraitUrl) {
   return isExternalLink(portraitUrl) ? portraitUrl : `images/${portraitUrl}`;
 }
 
-export function memberSlug(member) {
+export function computeMemberId(firstname, lastname) {
   const slugify = (value) =>
     String(value ?? '')
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-  return `${slugify(member.firstname)}-${slugify(member.lastname)}`;
+  return `${slugify(lastname)}-${slugify(firstname)}`;
 }
 
 export function textMatchesQuery(query, searchText) {

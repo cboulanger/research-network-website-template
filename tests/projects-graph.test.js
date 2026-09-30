@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { buildGraphData, filterMatches, buildProjectListItems, renderListView, sanitizeGraphData, parseMemberHash, participantsInclude } from '../assets/js/projects-graph.js';
 
 const members = [
-  { firstname: 'Ada', lastname: 'Adler', email: 'ada@example.org' },
-  { firstname: 'Bo', lastname: 'Bergman', email: 'bo@example.org' },
+  { firstname: 'Ada', lastname: 'Adler', id: 'adler-ada', email: 'ada@example.org' },
+  { firstname: 'Bo', lastname: 'Bergman', id: 'bergman-bo', email: 'bo@example.org' },
 ];
 const projects = [
-  { id: 'p1', title: 'Project One', participants: ['ada@example.org', 'bo@example.org'] },
-  { id: 'p2', title: 'Project Two', participants: ['ada@example.org', 'ghost@example.org'] },
+  { id: 'p1', title: 'Project One', participants: ['adler-ada', 'bergman-bo'] },
+  { id: 'p2', title: 'Project Two', participants: ['adler-ada', 'ghost-id'] },
 ];
 
 test('buildGraphData creates one node per project and per unique scholar', () => {
@@ -56,14 +56,14 @@ test('buildProjectListItems drops unknown participants', () => {
 
 test('buildProjectListItems attaches a slug instead of an email', () => {
   const items = buildProjectListItems(projects, members);
-  assert.deepEqual(items[0].participantNames.map((p) => p.slug), ['ada-adler', 'bo-bergman']);
+  assert.deepEqual(items[0].participantNames.map((p) => p.slug), ['adler-ada', 'bergman-bo']);
   assert.equal('email' in items[0].participantNames[0], false);
 });
 
 test('renderListView links participants by slug, not email', () => {
   const container = {};
   renderListView(projects, members, container);
-  assert.match(container.innerHTML, /href="members.html#ada-adler"/);
+  assert.match(container.innerHTML, /href="members.html#adler-ada"/);
   assert.doesNotMatch(container.innerHTML, /ada%40example\.org/);
 });
 
@@ -72,7 +72,7 @@ test('sanitizeGraphData drops email and keeps a slug on scholar nodes', () => {
   const { nodes: sanitized } = sanitizeGraphData(nodes, []);
   const scholar = sanitized.find((n) => n.type === 'scholar');
   assert.equal('email' in scholar.data, false);
-  assert.equal(scholar.data.slug, 'ada-adler');
+  assert.equal(scholar.data.slug, 'adler-ada');
 });
 
 test('sanitizeGraphData drops the participants list from project nodes', () => {
@@ -86,24 +86,24 @@ test('sanitizeGraphData does not leak the email into the scholar node id', () =>
   const { nodes } = buildGraphData(projects, members);
   const { nodes: sanitized } = sanitizeGraphData(nodes, []);
   const scholar = sanitized.find((n) => n.type === 'scholar');
-  assert.equal(scholar.id, 'scholar:ada-adler');
+  assert.equal(scholar.id, 'scholar:adler-ada');
   assert.doesNotMatch(scholar.id, /@/);
 });
 
 test('sanitizeGraphData rewrites link source/target to match the sanitized scholar node ids', () => {
   const { nodes, links } = buildGraphData(projects, members);
   const { links: sanitizedLinks } = sanitizeGraphData(nodes, links);
-  const linkToAda = sanitizedLinks.find((l) => l.source === 'project:p1' && l.target === 'scholar:ada-adler');
-  assert.ok(linkToAda, 'expected a link from project:p1 to scholar:ada-adler');
+  const linkToAda = sanitizedLinks.find((l) => l.source === 'project:p1' && l.target === 'scholar:adler-ada');
+  assert.ok(linkToAda, 'expected a link from project:p1 to scholar:adler-ada');
   assert.equal(sanitizedLinks.some((l) => l.source.includes('@') || l.target.includes('@')), false);
 });
 
 test('renderListView tags each project with its participant slugs', () => {
   const container = {};
   renderListView(projects, members, container);
-  assert.match(container.innerHTML, /data-participants="ada-adler bo-bergman"/);
-  assert.match(container.innerHTML, /data-participants="ada-adler"/);
-  assert.match(container.innerHTML, /<a href="members.html#bo-bergman" data-slug="bo-bergman">/);
+  assert.match(container.innerHTML, /data-participants="adler-ada bergman-bo"/);
+  assert.match(container.innerHTML, /data-participants="adler-ada"/);
+  assert.match(container.innerHTML, /<a href="members.html#bergman-bo" data-slug="bergman-bo">/);
 });
 
 test('parseMemberHash extracts the slug from a member hash', () => {
@@ -122,9 +122,9 @@ test('parseMemberHash returns null for anything else', () => {
 });
 
 test('participantsInclude matches whole slugs only', () => {
-  assert.equal(participantsInclude('ada-adler bo-bergman', 'bo-bergman'), true);
-  assert.equal(participantsInclude('ada-adler', 'bo-bergman'), false);
+  assert.equal(participantsInclude('adler-ada bergman-bo', 'bergman-bo'), true);
+  assert.equal(participantsInclude('adler-ada', 'bergman-bo'), false);
   assert.equal(participantsInclude('anna-x', 'ann'), false);
-  assert.equal(participantsInclude('', 'ada-adler'), false);
-  assert.equal(participantsInclude(undefined, 'ada-adler'), false);
+  assert.equal(participantsInclude('', 'adler-ada'), false);
+  assert.equal(participantsInclude(undefined, 'adler-ada'), false);
 });

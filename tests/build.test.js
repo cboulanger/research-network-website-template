@@ -18,11 +18,13 @@ async function writeFixtureContent(dir) {
   );
   await writeFile(
     path.join(dir, 'data', 'members.json'),
-    JSON.stringify([{ firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' }])
+    JSON.stringify([
+      { id: 'person-test', firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' },
+    ])
   );
   await writeFile(
     path.join(dir, 'data', 'projects.json'),
-    JSON.stringify([{ id: 'p1', title: 'Test Project', participants: ['secret@example.org'] }])
+    JSON.stringify([{ id: 'p1', title: 'Test Project', participants: ['person-test'] }])
   );
   await writeFile(path.join(dir, 'data', 'events.json'), JSON.stringify([]));
   await writeFile(path.join(dir, 'data', 'news.json'), JSON.stringify([]));
@@ -93,16 +95,16 @@ test('build.mjs links project participants from the members page to the focused 
   await writeFile(
     path.join(contentDir, 'data', 'members.json'),
     JSON.stringify([
-      { firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' },
-      { firstname: 'Solo', lastname: 'Member', affiliation: 'Test Org', email: 'solo@example.org' },
+      { id: 'person-test', firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' },
+      { id: 'member-solo', firstname: 'Solo', lastname: 'Member', affiliation: 'Test Org', email: 'solo@example.org' },
     ])
   );
 
   await runBuild(contentDir, publicDir);
 
   const membersHTML = await readFile(path.join(publicDir, 'members.html'), 'utf8');
-  assert.equal(membersHTML.match(/projects\.html#member=test-person/g).length, 2);
-  assert.doesNotMatch(membersHTML, /projects\.html#member=solo-member/);
+  assert.equal(membersHTML.match(/projects\.html#member=person-test/g).length, 2);
+  assert.doesNotMatch(membersHTML, /projects\.html#member=member-solo/);
 
   const projectsHTML = await readFile(path.join(publicDir, 'projects.html'), 'utf8');
   assert.match(projectsHTML, /id="member-focus-banner"/);

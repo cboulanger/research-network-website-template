@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, memberSlug, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
+import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, computeMemberId, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
   assert.equal(getInitials('Jordan', 'Lee'), 'JL');
@@ -60,12 +60,12 @@ test('resolvePortraitUrl maps a bare filename into images/', () => {
   assert.equal(resolvePortraitUrl('murayama.jpg'), 'images/murayama.jpg');
 });
 
-test('memberSlug builds a lowercase hyphenated slug from first and last name', () => {
-  assert.equal(memberSlug({ firstname: 'Ada', lastname: 'Adler' }), 'ada-adler');
+test('computeMemberId builds a lowercase hyphenated id from lastname and firstname', () => {
+  assert.equal(computeMemberId('Ada', 'Adler'), 'adler-ada');
 });
 
-test('memberSlug strips characters that are not letters or digits', () => {
-  assert.equal(memberSlug({ firstname: "O'Brien", lastname: 'Smith-Jones' }), 'o-brien-smith-jones');
+test('computeMemberId strips characters that are not letters or digits', () => {
+  assert.equal(computeMemberId("O'Brien", 'Smith-Jones'), 'smith-jones-o-brien');
 });
 
 test('textMatchesQuery treats an empty query as matching everything', () => {

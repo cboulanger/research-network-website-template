@@ -1,20 +1,20 @@
-import { escapeHTML, getInitials, hashColor, memberSlug, resolvePortraitUrl } from './shared.js';
+import { escapeHTML, getInitials, hashColor, resolvePortraitUrl } from './shared.js';
 
 export function buildGraphData(projects, members) {
-  const memberByEmail = new Map(members.map((m) => [m.email, m]));
+  const memberById = new Map(members.map((m) => [m.id, m]));
   const nodes = [];
   const links = [];
   const seenScholars = new Set();
 
   projects.forEach((project) => {
     nodes.push({ id: `project:${project.id}`, type: 'project', data: project });
-    (project.participants || []).forEach((email) => {
-      const member = memberByEmail.get(email);
+    (project.participants || []).forEach((id) => {
+      const member = memberById.get(id);
       if (!member) {
-        console.warn(`Project "${project.id}" references unknown participant "${email}"`);
+        console.warn(`Project "${project.id}" references unknown participant "${id}"`);
         return;
       }
-      const scholarId = `scholar:${email}`;
+      const scholarId = `scholar:${id}`;
       if (!seenScholars.has(scholarId)) {
         nodes.push({ id: scholarId, type: 'scholar', data: member });
         seenScholars.add(scholarId);
@@ -34,14 +34,12 @@ export function sanitizeGraphData(nodes, links) {
       idMap.set(n.id, n.id);
       return { id: n.id, type: 'project', data: { id, title, subtitle, description, url, image_url } };
     }
-    const { firstname, lastname, affiliation, portrait_url, url } = n.data;
-    const slug = memberSlug(n.data);
-    const sanitizedId = `scholar:${slug}`;
-    idMap.set(n.id, sanitizedId);
+    const { id, firstname, lastname, affiliation, portrait_url, url } = n.data;
+    idMap.set(n.id, n.id);
     return {
-      id: sanitizedId,
+      id: n.id,
       type: 'scholar',
-      data: { firstname, lastname, affiliation, portrait_url: resolvePortraitUrl(portrait_url), url, slug },
+      data: { firstname, lastname, affiliation, portrait_url: resolvePortraitUrl(portrait_url), url, slug: id },
     };
   });
   const sanitizedLinks = links.map((l) => {
@@ -65,15 +63,15 @@ export function filterMatches(query, node) {
 }
 
 export function buildProjectListItems(projects, members) {
-  const memberByEmail = new Map(members.map((m) => [m.email, m]));
+  const memberById = new Map(members.map((m) => [m.id, m]));
   return projects.map((project) => ({
     ...project,
     participantNames: (project.participants || [])
-      .map((email) => memberByEmail.get(email))
+      .map((id) => memberById.get(id))
       .filter(Boolean)
       .map((m) => ({
         name: m.affiliation ? `${m.firstname} ${m.lastname} (${m.affiliation})` : `${m.firstname} ${m.lastname}`,
-        slug: memberSlug(m),
+        slug: m.id,
       })),
   }));
 }

@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, memberSlug, resolvePortraitUrl, textMatchesQuery, wirePortraitFallback } from './shared.js';
+import { escapeHTML, getInitials, hashColor, resolvePortraitUrl, textMatchesQuery, wirePortraitFallback } from './shared.js';
 
 export function sortMembersByLastname(members) {
   return [...members].sort((a, b) =>
@@ -15,21 +15,19 @@ export function memberMatches(query, member) {
 }
 
 export function participantSlugs(projects, members) {
-  const memberByEmail = new Map(members.map((m) => [m.email, m]));
+  const knownIds = new Set(members.map((m) => m.id));
   const slugs = new Set();
   projects.forEach((project) => {
-    (project.participants || []).forEach((email) => {
-      const member = memberByEmail.get(email);
-      if (member) slugs.add(memberSlug(member));
+    (project.participants || []).forEach((id) => {
+      if (knownIds.has(id)) slugs.add(id);
     });
   });
   return slugs;
 }
 
 function renderProjectsLink(member, participantSlugs) {
-  const slug = memberSlug(member);
-  return participantSlugs && participantSlugs.has(slug)
-    ? `<a class="member-projects-link" href="projects.html#member=${escapeHTML(slug)}">Projects</a>`
+  return participantSlugs && participantSlugs.has(member.id)
+    ? `<a class="member-projects-link" href="projects.html#member=${escapeHTML(member.id)}">Projects</a>`
     : '';
 }
 
@@ -50,7 +48,7 @@ export function renderMemberCard(member, participantSlugs) {
   const portrait = member.portrait_url
     ? `<img class="avatar" src="${escapeHTML(resolvePortraitUrl(member.portrait_url))}" alt="" data-portrait-fallback data-initials="${escapeHTML(initials)}" data-avatar-color="${color}">`
     : `<div class="avatar-fallback" style="background-color:${color}">${escapeHTML(initials)}</div>`;
-  return `<li class="member-card" id="${memberSlug(member)}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p>${renderProjectsLink(member, participantSlugs)}${renderPublicationsLink(member)}</li>`;
+  return `<li class="member-card" id="${member.id}" data-search="${escapeHTML(memberSearchText(member))}">${portrait}<h3>${nameHTML}</h3><p class="affiliation">${escapeHTML(member.affiliation)}</p>${renderProjectsLink(member, participantSlugs)}${renderPublicationsLink(member)}</li>`;
 }
 
 export function renderMembers(members, container, participantSlugs) {

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { sortMembersByLastname, renderMemberCard, memberMatches, memberSearchText, renderMemberListItem, renderMembers, renderMemberList, participantSlugs } from '../assets/js/members.js';
 
 const sample = [
-  { firstname: 'Jordan', lastname: 'Lee', affiliation: 'MPI', email: 'a@example.org' },
-  { firstname: 'Ada', lastname: 'Adler', affiliation: 'Uni X', email: 'b@example.org' },
+  { firstname: 'Jordan', lastname: 'Lee', affiliation: 'MPI', id: 'lee-jordan', email: 'a@example.org' },
+  { firstname: 'Ada', lastname: 'Adler', affiliation: 'Uni X', id: 'adler-ada', email: 'b@example.org' },
 ];
 
 test('sortMembersByLastname sorts alphabetically by lastname', () => {
@@ -45,9 +45,9 @@ test('renderMemberCard does not expose the email address', () => {
   assert.doesNotMatch(html, /a@example\.org/);
 });
 
-test('renderMemberCard uses a name-based slug as its id, not the email', () => {
+test('renderMemberCard uses the stored member id, not the email', () => {
   const html = renderMemberCard(sample[0]);
-  assert.match(html, /id="jordan-lee"/);
+  assert.match(html, /id="lee-jordan"/);
   assert.doesNotMatch(html, /a%40example\.org/);
 });
 
@@ -98,18 +98,18 @@ test('renderMemberListItem does not expose the email address', () => {
 });
 
 test('renderMemberCard adds a Projects link when the member participates in a project', () => {
-  const html = renderMemberCard(sample[0], new Set(['jordan-lee']));
-  assert.match(html, /<a class="member-projects-link" href="projects.html#member=jordan-lee">Projects<\/a>/);
+  const html = renderMemberCard(sample[0], new Set(['lee-jordan']));
+  assert.match(html, /<a class="member-projects-link" href="projects.html#member=lee-jordan">Projects<\/a>/);
 });
 
 test('renderMemberCard omits the Projects link for members without projects', () => {
-  assert.doesNotMatch(renderMemberCard(sample[0], new Set(['ada-adler'])), /member-projects-link/);
+  assert.doesNotMatch(renderMemberCard(sample[0], new Set(['adler-ada'])), /member-projects-link/);
   assert.doesNotMatch(renderMemberCard(sample[0]), /member-projects-link/);
 });
 
 test('renderMemberListItem adds a Projects link when the member participates in a project', () => {
-  const html = renderMemberListItem(sample[0], new Set(['jordan-lee']));
-  assert.match(html, /href="projects.html#member=jordan-lee"/);
+  const html = renderMemberListItem(sample[0], new Set(['lee-jordan']));
+  assert.match(html, /href="projects.html#member=lee-jordan"/);
 });
 
 test('renderMemberListItem omits the Projects link for members without projects', () => {
@@ -133,18 +133,18 @@ test('renderMemberCard and renderMemberListItem omit the Publications link witho
 test('renderMembers and renderMemberList forward the participant set', () => {
   const grid = {};
   const list = {};
-  renderMembers(sample, grid, new Set(['ada-adler']));
-  renderMemberList(sample, list, new Set(['ada-adler']));
+  renderMembers(sample, grid, new Set(['adler-ada']));
+  renderMemberList(sample, list, new Set(['adler-ada']));
   assert.equal(grid.innerHTML.match(/member-projects-link/g).length, 1);
   assert.equal(list.innerHTML.match(/member-projects-link/g).length, 1);
 });
 
-test('participantSlugs collects slugs of known project participants', () => {
-  const members = [...sample, { firstname: 'No', lastname: 'Projects', email: 'c@example.org' }];
+test('participantSlugs collects ids of known project participants', () => {
+  const members = [...sample, { firstname: 'No', lastname: 'Projects', id: 'projects-no', email: 'c@example.org' }];
   const projects = [
-    { id: 'p1', participants: ['a@example.org', 'ghost@example.org'] },
-    { id: 'p2', participants: ['a@example.org', 'b@example.org'] },
+    { id: 'p1', participants: ['lee-jordan', 'ghost-id'] },
+    { id: 'p2', participants: ['lee-jordan', 'adler-ada'] },
     { id: 'p3' },
   ];
-  assert.deepEqual([...participantSlugs(projects, members)].sort(), ['ada-adler', 'jordan-lee']);
+  assert.deepEqual([...participantSlugs(projects, members)].sort(), ['adler-ada', 'lee-jordan']);
 });
