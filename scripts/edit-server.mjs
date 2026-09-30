@@ -17,7 +17,7 @@ const STATIC_FILES = {
 };
 
 export function createServer({ contentPath, schemaDir, editorDir }) {
-  const ajv = new Ajv({ allErrors: true, strict: false });
+  const ajv = new Ajv({ allErrors: true, strict: true });
   const types = getEditableTypes(schemaDir);
   const typeByName = new Map(types.map((t) => [t.name, t]));
   const validators = new Map(types.map((t) => [t.name, ajv.compile(t.schema)]));
@@ -35,7 +35,14 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
   async function readJSONBody(req) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
+    if (!chunks.length) return {};
+    try {
+      return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch {
+      const error = new Error('Request body is not valid JSON');
+      error.statusCode = 400;
+      throw error;
+    }
   }
 
   async function loadRecords(name) {
@@ -119,8 +126,19 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
         const body = await readJSONBody(req);
         const records = await loadRecords(name);
         const record = { ...body };
-        if (name === 'members' && !record.id) {
-          record.id = uniqueMemberId(records, record.firstname, record.lastname);
+        if (name === 'members') {
+          const existingIds = new Set(records.map((m) => m.id));
+          if (!record.id) {
+            record.id = uniqueMemberId(records, record.firstname, record.lastname);
+          } else if (existingIds.has(record.id)) {
+            let id = record.id;
+            let suffix = 2;
+            while (existingIds.has(id)) {
+              id = `${record.id}-${suffix}`;
+              suffix += 1;
+            }
+            record.id = id;
+          }
         }
         try {
           await saveRecords(name, [...records, record]);
@@ -171,7 +189,7 @@ export function createServer({ contentPath, schemaDir, editorDir }) {
   return http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith('/api/')) {
-      handleApi(req, res, url).catch((err) => sendError(res, 500, err.message));
+      handleApi(req, res, url).catch((err) => sendError(res, err.statusCode || 500, err.message, err.details));
     } else {
       serveStatic(res, url.pathname);
     }

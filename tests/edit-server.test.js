@@ -85,6 +85,53 @@ test('POST /api/data/members rejects a record that fails schema validation', asy
   }
 });
 
+test('POST /api/data/members resolves an id collision by suffixing the submitted id', async () => {
+  const ctx = await startTestServer({
+    members: [{ id: 'adler-ada', firstname: 'Ada', lastname: 'Adler', affiliation: 'X', email: 'a@example.org' }],
+  });
+  try {
+    const res = await fetch(`${ctx.base}/api/data/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'adler-ada',
+        firstname: 'Ada',
+        lastname: 'Adler',
+        affiliation: 'Y',
+        email: 'b@example.org',
+      }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.notEqual(body.id, 'adler-ada');
+    assert.equal(body.id, 'adler-ada-2');
+    const saved = JSON.parse(await readFile(path.join(ctx.contentPath, 'data', 'members.json'), 'utf8'));
+    assert.equal(saved.length, 2);
+    const ids = saved.map((m) => m.id);
+    assert.deepEqual(new Set(ids).size, 2);
+    assert.ok(ids.includes('adler-ada'));
+    assert.ok(ids.includes('adler-ada-2'));
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/data/members with a malformed JSON body returns 400, not 500', async () => {
+  const ctx = await startTestServer({ members: [] });
+  try {
+    const res = await fetch(`${ctx.base}/api/data/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{not valid json',
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test('PUT /api/data/projects/:id updates a project by id', async () => {
   const ctx = await startTestServer({
     projects: [{ id: 'p1', title: 'Old Title', participants: [] }],
