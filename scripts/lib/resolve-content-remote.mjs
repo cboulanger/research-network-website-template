@@ -55,7 +55,8 @@ export async function materializeRemote(baseUrl) {
   }
 
   const portraitImages = data.members.map((m) => m.portrait_url).filter((url) => url && !isExternalLink(url));
-  for (const name of new Set([data.site.favicon, data.site.logo, ...portraitImages].filter(Boolean))) {
+  const projectImages = (data.projects ?? []).map((p) => p.image_url).filter((url) => url && !isExternalLink(url));
+  for (const name of new Set([data.site.favicon, data.site.logo, ...portraitImages, ...projectImages].filter(Boolean))) {
     const buffer = Buffer.from(await (await fetchOk(`${baseUrl}/images/${name}`)).arrayBuffer());
     await writeFile(path.join(dir, 'images', name), buffer);
   }
