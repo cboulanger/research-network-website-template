@@ -13,7 +13,7 @@
       "subtitle": { "type": "string" },
       "description": { "type": "string", "x-editor": { "widget": "textarea", "rows": 15 } },
       "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
-      "image_url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "image_url": { "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$" },
       "participants": {
         "type": "array",
         "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }

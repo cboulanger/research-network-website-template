@@ -155,7 +155,7 @@ function openModal(project) {
 
   const img = document.getElementById('modal-image');
   if (project.image_url) {
-    img.src = project.image_url;
+    img.src = resolvePortraitUrl(project.image_url);
     img.hidden = false;
   } else {
     img.hidden = true;
