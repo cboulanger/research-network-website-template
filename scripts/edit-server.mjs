@@ -23,6 +23,7 @@ const STATIC_FILES = {
   '/index.html': { file: 'index.html', type: 'text/html' },
   '/app.js': { file: 'app.js', type: 'text/javascript' },
   '/style.css': { file: 'style.css', type: 'text/css' },
+  '/inbox-view.js': { file: 'inbox-view.js', type: 'text/javascript' },
 };
 
 // Browser modules shared between the public site and the editor.

@@ -450,3 +450,14 @@ test('GET /api/inbox returns a warning instead of 500 when the inbox cannot be l
     await ctx.close();
   }
 });
+
+test('the inbox view module is served to the editor', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/inbox-view.js`);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /export function renderInboxEntries/);
+  } finally {
+    await ctx.close();
+  }
+});

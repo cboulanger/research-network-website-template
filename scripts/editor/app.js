@@ -1,4 +1,5 @@
 import { editorHints, renderRecordFields, collectRecordData } from '/assets/js/record-form.js';
+import { renderInboxEntries } from '/inbox-view.js';
 
 const state = {
   types: [],
@@ -7,6 +8,7 @@ const state = {
   records: [],
   members: [],
   editingKey: null,
+  inboxEntry: null,
 };
 
 // Object schemas (site, publications) are a single record edited in place;
@@ -236,17 +238,20 @@ function renderForm(record) {
   form.querySelector('#cancel-button')?.addEventListener('click', hideForm);
 }
 
-function openForm(key) {
+function openForm(key, prefill) {
   state.editingKey = key;
-  document.getElementById('form-title').textContent = key === null ? `New ${state.currentType.name}` : `Edit ${state.currentType.name}`;
+  document.getElementById('form-title').textContent = state.inboxEntry
+    ? `Review submission: ${state.currentType.name}`
+    : key === null ? `New ${state.currentType.name}` : `Edit ${state.currentType.name}`;
   hideFormError();
-  renderForm(key === null ? {} : findRecordByKey(key));
+  renderForm(prefill ?? (key === null ? {} : findRecordByKey(key)));
   document.getElementById('form-panel').hidden = false;
 }
 
 function hideForm() {
   document.getElementById('form-panel').hidden = true;
   state.editingKey = null;
+  state.inboxEntry = null;
 }
 
 function collectFormData() {
@@ -313,6 +318,15 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
         body: JSON.stringify(data),
       });
     }
+    if (state.inboxEntry) {
+      const entry = state.inboxEntry;
+      await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      loadInbox();
+    }
     await selectType(name);
   } catch (err) {
     showFormError(err.message, err.details);
@@ -374,6 +388,52 @@ fetchJSON('/api/site')
     link.hidden = false;
   })
   .catch(() => {}); // the link is a convenience; the editor works without it
+
+const inboxPanel = document.getElementById('inbox-panel');
+let inboxEntries = [];
+
+async function loadInbox() {
+  const status = document.getElementById('inbox-status');
+  status.textContent = 'Checking for submissions…';
+  try {
+    const body = await fetchJSON('/api/inbox');
+    if (!body.enabled) return;
+    inboxEntries = body.entries;
+    document.getElementById('inbox-tool').hidden = false;
+    document.getElementById('inbox-button').textContent = `Inbox (${inboxEntries.length})`;
+    const notes = [];
+    if (body.dropped) notes.push(`${body.dropped} invalid message(s) ignored.`);
+    if (body.warning) notes.push(body.warning);
+    status.textContent = notes.join(' ');
+    status.classList.toggle('error', Boolean(body.warning));
+    renderInboxEntries(document.getElementById('inbox-list'), inboxEntries, { onReview: reviewSubmission, onReject: rejectSubmission });
+  } catch (err) {
+    status.textContent = err.message;
+    status.classList.add('error');
+  }
+}
+
+async function reviewSubmission(entry) {
+  inboxPanel.hidden = true;
+  await selectType(entry.type);
+  state.inboxEntry = entry;
+  openForm(entry.key, entry.prefill);
+}
+
+async function rejectSubmission(entry) {
+  if (!confirm('Reject this submission?')) return;
+  await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reject' }),
+  });
+  await loadInbox();
+}
+
+document.getElementById('inbox-button').addEventListener('click', () => { inboxPanel.hidden = false; });
+document.getElementById('inbox-close').addEventListener('click', () => { inboxPanel.hidden = true; });
+document.getElementById('inbox-refresh').addEventListener('click', loadInbox);
+loadInbox();
 
 loadTypes().then(() => {
   if (state.types.length) selectType(state.types[0].name);
