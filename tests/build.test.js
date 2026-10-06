@@ -225,3 +225,43 @@ test('build.mjs fails on a stalled Zotero server without touching the existing b
   await rm(contentDir, { recursive: true, force: true });
   await rm(publicDir, { recursive: true, force: true });
 });
+
+test('with NTFY_TOPIC the build emits the public edit files, without private fields', async () => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await runBuildAsync(contentDir, publicDir, { NTFY_TOPIC: 'test-topic', NTFY_SERVER: 'https://ntfy.example.org' });
+
+  for (const f of ['edit.html', 'assets/js/edit-page.js', 'assets/js/edit-mode.js', 'assets/js/record-form.js',
+    'assets/js/ntfy.js', 'assets/js/edit-config.js', 'assets/data/members.json', 'assets/schema/members.schema.json']) {
+    assert.ok(existsSync(path.join(publicDir, f)), `${f} should exist`);
+  }
+  const config = await readFile(path.join(publicDir, 'assets/js/edit-config.js'), 'utf8');
+  assert.match(config, /test-topic/);
+  assert.match(config, /ntfy\.example\.org/);
+  for (const f of ['assets/data/members.json', 'assets/schema/members.schema.json', 'members.html', 'edit.html']) {
+    assert.doesNotMatch(await readFile(path.join(publicDir, f), 'utf8'), /secret@example\.org|"email"/, f);
+  }
+  const members = JSON.parse(await readFile(path.join(publicDir, 'assets/data/members.json'), 'utf8'));
+  assert.equal('email' in members[0], false);
+  const schema = JSON.parse(await readFile(path.join(publicDir, 'assets/schema/members.schema.json'), 'utf8'));
+  assert.equal(schema.items.required.includes('id'), false);
+  for (const page of ['members', 'projects', 'events', 'news']) {
+    assert.match(await readFile(path.join(publicDir, `${page}.html`), 'utf8'), /assets\/js\/edit-mode\.js/, page);
+  }
+  assert.match(await readFile(path.join(publicDir, 'members.html'), 'utf8'), /data-record-id="person-test"/);
+  assert.match(await readFile(path.join(publicDir, 'projects.html'), 'utf8'), /data-record-id="p1"/);
+});
+
+test('without NTFY_TOPIC the build emits no edit files and pages do not reference them', async () => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await runBuildAsync(contentDir, publicDir, { NTFY_TOPIC: '' });
+  for (const f of ['edit.html', 'assets/js/edit-page.js', 'assets/js/edit-mode.js', 'assets/js/edit-config.js', 'assets/data', 'assets/schema']) {
+    assert.equal(existsSync(path.join(publicDir, f)), false, `${f} should not exist`);
+  }
+  for (const page of ['members', 'projects', 'events', 'news']) {
+    assert.doesNotMatch(await readFile(path.join(publicDir, `${page}.html`), 'utf8'), /edit-mode/, page);
+  }
+});

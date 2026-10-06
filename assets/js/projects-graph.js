@@ -81,7 +81,7 @@ export function renderListView(projects, members, container) {
   container.innerHTML = items.length
     ? items
         .map(
-          (p) => `<li data-participants="${escapeHTML(p.participantNames.map((s) => s.slug).join(' '))}">
+          (p) => `<li data-record-id="${escapeHTML(p.id)}" data-participants="${escapeHTML(p.participantNames.map((s) => s.slug).join(' '))}">
             <h3>${escapeHTML(p.title)}</h3>
             ${p.subtitle ? `<p class="subtitle">${escapeHTML(p.subtitle)}</p>` : ''}
             ${p.description ? `<p>${escapeHTML(p.description)}</p>` : ''}
