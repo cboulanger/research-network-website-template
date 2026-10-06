@@ -39,7 +39,7 @@ function renderPublicationsLink(member) {
 
 export function renderMemberCard(member, participantSlugs) {
   const initials = getInitials(member.firstname, member.lastname);
-  const color = hashColor(member.email);
+  const color = hashColor(member.id);
   const firstname = escapeHTML(member.firstname);
   const lastname = escapeHTML(member.lastname);
   const nameHTML = member.url
