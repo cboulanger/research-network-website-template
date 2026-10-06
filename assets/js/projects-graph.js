@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, resolvePortraitUrl } from './shared.js';
+import { escapeHTML, getInitials, hashColor, parseViewHash, resolvePortraitUrl } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -401,6 +401,7 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
       }
 
       function focusFromHash() {
+        if (parseViewHash(location.hash, ['list', 'graph'])) return;
         const slug = parseMemberHash(location.hash);
         const target = slug && nodes.find((n) => n.id === `scholar:${slug}`);
         if (!target) {
@@ -441,11 +442,23 @@ if (typeof document !== 'undefined' && document.getElementById('graph-svg')) {
       document.addEventListener('click', hideScholarLabel);
 
       const toggle = document.getElementById('view-toggle');
-      let mode = window.innerWidth < 700 ? 'list' : 'graph';
+      // `projects.html#list` / `projects.html#graph` override the viewport default.
+      let mode = parseViewHash(location.hash, ['list', 'graph']) || (window.innerWidth < 700 ? 'list' : 'graph');
       setView(mode);
+      // Reflect the default in the URL, but never clobber an existing hash
+      // (e.g. #member=slug).
+      if (!location.hash) history.replaceState(null, '', `#${mode}`);
       toggle.addEventListener('click', () => {
         mode = mode === 'graph' ? 'list' : 'graph';
         setView(mode);
+        history.replaceState(null, '', `#${mode}`);
+      });
+      window.addEventListener('hashchange', () => {
+        const fromHash = parseViewHash(location.hash, ['list', 'graph']);
+        if (fromHash) {
+          mode = fromHash;
+          setView(mode);
+        }
       });
 
       focusFromHash();

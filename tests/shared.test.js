@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, computeMemberId, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
+import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, computeMemberId, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename, parseViewHash } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
   assert.equal(getInitials('Jordan', 'Lee'), 'JL');
@@ -126,4 +126,11 @@ test('titleFromFilename strips the extension and title-cases hyphen/underscore-s
 test('navHTML leaves out excluded pages', () => {
   assert.match(navHTML('home'), /publications\.html/);
   assert.doesNotMatch(navHTML('home', 'Site', ['publications']), /publications\.html/);
+});
+
+test('parseViewHash accepts allowed view names, with optional stray dot', () => {
+  assert.equal(parseViewHash('#list', ['list', 'tiles']), 'list');
+  assert.equal(parseViewHash('#.graph', ['list', 'graph']), 'graph');
+  assert.equal(parseViewHash('#member=x', ['list', 'graph']), null);
+  assert.equal(parseViewHash('', ['list']), null);
 });

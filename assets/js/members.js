@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, resolvePortraitUrl, textMatchesQuery, wirePortraitFallback } from './shared.js';
+import { escapeHTML, getInitials, hashColor, parseViewHash, resolvePortraitUrl, textMatchesQuery, wirePortraitFallback } from './shared.js';
 
 export function sortMembersByLastname(members) {
   return [...members].sort((a, b) =>
@@ -102,10 +102,26 @@ if (typeof document !== 'undefined' && document.getElementById('members-grid')) 
     listContainer.hidden = mode !== 'list';
     toggle.textContent = mode === 'grid' ? 'Switch to list view' : 'Switch to grid view';
   }
-  let mode = window.innerWidth < 700 ? 'list' : 'grid';
+  // `members.html#list` / `members.html#tiles` override the viewport default.
+  const viewFromHash = () => {
+    const name = parseViewHash(location.hash, ['list', 'tiles']);
+    return name && (name === 'tiles' ? 'grid' : 'list');
+  };
+  let mode = viewFromHash() || (window.innerWidth < 700 ? 'list' : 'grid');
   setView(mode);
+  // Reflect the default in the URL, but never clobber an existing hash (it may
+  // be an anchor to a member card).
+  if (!location.hash) history.replaceState(null, '', `#${mode === 'grid' ? 'tiles' : 'list'}`);
   toggle.addEventListener('click', () => {
     mode = mode === 'grid' ? 'list' : 'grid';
     setView(mode);
+    history.replaceState(null, '', `#${mode === 'grid' ? 'tiles' : 'list'}`);
+  });
+  window.addEventListener('hashchange', () => {
+    const fromHash = viewFromHash();
+    if (fromHash) {
+      mode = fromHash;
+      setView(mode);
+    }
   });
 }
