@@ -13,8 +13,9 @@ and no edit code ships.
 ## Decisions
 
 - **Server:** configurable via `NTFY_SERVER` (default `https://ntfy.sh`), so
-  admins can self-host for longer retention (ntfy.sh caches ~12h) and bigger
-  messages (ntfy.sh limit 4 KB).
+  admins can self-host for longer retention (ntfy.sh caches ~12h) or access
+  control. The form's 4096-byte message limit is fixed and enforced
+  regardless of server.
 - **Private fields:** omitted entirely from the public form, the public data
   and the ntfy messages. Reviewer fills them in for new records.
 - **Scope:** all four array collections (members, projects, events, news).
@@ -72,8 +73,8 @@ Without `NTFY_TOPIC`, none of these files exist and pages do not reference them.
   The envelope has an optional `base` (the original public record), sent for
   `update` of collections without an `id` field (events, news); their `id` is
   the array index.
-- Payloads exceeding the size limit (4096 bytes unless a self-hosted server is
-  used; the limit is a constant, checked before sending) are rejected in the
+- Payloads exceeding the size limit (4096 bytes for every server, self-hosted or
+  not; the limit is a constant, checked before sending) are rejected in the
   form with a clear message. Network/HTTP errors are shown; success shows a
   confirmation.
 

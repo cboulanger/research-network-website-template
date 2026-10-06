@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -263,5 +263,30 @@ test('without NTFY_TOPIC the build emits no edit files and pages do not referenc
   }
   for (const page of ['members', 'projects', 'events', 'news']) {
     assert.doesNotMatch(await readFile(path.join(publicDir, `${page}.html`), 'utf8'), /edit-mode/, page);
+  }
+});
+
+test('with NTFY_TOPIC no output file anywhere contains member email addresses', async () => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await writeFile(
+    path.join(contentDir, 'data', 'members.json'),
+    JSON.stringify([
+      { id: 'person-test', firstname: 'Test', lastname: 'Person', affiliation: 'Test Org', email: 'secret@example.org' },
+      { id: 'member-solo', firstname: 'Solo', lastname: 'Member', affiliation: 'Test Org', email: 'solo@example.org' },
+    ])
+  );
+  await runBuildAsync(contentDir, publicDir, { NTFY_TOPIC: 'test-topic', NTFY_SERVER: 'https://ntfy.example.org' });
+
+  const binary = /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|pdf)$/i;
+  const entries = await readdir(publicDir, { recursive: true, withFileTypes: true });
+  const files = entries.filter((e) => e.isFile() && !binary.test(e.name)).map((e) => path.join(e.parentPath ?? e.path, e.name));
+  const rels = files.map((f) => path.relative(publicDir, f).split(path.sep).join('/'));
+  for (const must of ['edit.html', 'assets/data/members.json', 'assets/projects-graph-data.json']) {
+    assert.ok(rels.includes(must), `${must} should be scanned`);
+  }
+  for (const f of files) {
+    assert.doesNotMatch(await readFile(f, 'utf8'), /secret@example\.org|solo@example\.org/, path.relative(publicDir, f));
   }
 });

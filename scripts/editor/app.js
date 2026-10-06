@@ -409,7 +409,7 @@ async function loadInbox() {
   status.textContent = 'Checking for submissions…';
   try {
     const body = await fetchJSON('/api/inbox');
-    if (!body.enabled) return;
+    if (!body.enabled) return false;
     inboxEntries = body.entries;
     document.getElementById('inbox-tool').hidden = false;
     document.getElementById('inbox-button').textContent = `Inbox (${inboxEntries.length})`;
@@ -419,14 +419,23 @@ async function loadInbox() {
     status.textContent = notes.join(' ');
     status.classList.toggle('error', Boolean(body.warning));
     renderInboxEntries(document.getElementById('inbox-list'), inboxEntries, { onReview: reviewSubmission, onReject: rejectSubmission });
+    return true;
   } catch (err) {
     status.textContent = err.message;
     status.classList.add('error');
+    return false;
   }
 }
 
-async function reviewSubmission(entry) {
+async function reviewSubmission(staleEntry) {
   inboxPanel.hidden = true;
+  // Keyless collections are addressed by array index, so re-fetch to make sure it still points at the right record.
+  const refreshed = await loadInbox();
+  const entry = refreshed ? inboxEntries.find((e) => e.id === staleEntry.id) : undefined;
+  if (!entry) {
+    alert('This submission is no longer pending.');
+    return;
+  }
   await selectType(entry.type);
   if (!state.currentType || state.currentType.name !== entry.type || isSingleton()) {
     alert(`Cannot review this submission: "${entry.type}" is not a collection that accepts submissions.`);

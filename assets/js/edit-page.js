@@ -13,6 +13,7 @@ export async function initEditPage({ doc, search, config, fetchFn = (...args) =>
   const show = (text, isError) => {
     message.textContent = text;
     message.className = isError ? 'form-error' : 'form-message';
+    if (isError) message.setAttribute('role', 'alert'); else message.removeAttribute('role');
     message.hidden = false;
   };
   if (!EDITABLE_TYPES.includes(type)) return show('Unknown content type.', true);
@@ -33,7 +34,7 @@ export async function initEditPage({ doc, search, config, fetchFn = (...args) =>
     if (!isNew) {
       const records = await getJSON(`assets/data/${type}.json`);
       const id = params.get('id');
-      const found = keyField ? records.find((r) => r[keyField] === id) : records[Number(id)];
+      const found = keyField ? records.find((r) => r[keyField] === id) : (/^\d+$/.test(id) ? records[Number(id)] : undefined);
       if (!found) return show('This entry no longer exists. Please go back and reload the page.', true);
       record = found;
     }
@@ -74,6 +75,19 @@ export async function initEditPage({ doc, search, config, fetchFn = (...args) =>
   });
 }
 
+export async function bootEditPage({ doc, search, loadConfig }) {
+  try {
+    const config = await loadConfig();
+    await initEditPage({ doc, search, config });
+  } catch (err) {
+    const message = doc.getElementById('edit-message');
+    message.textContent = err.message;
+    message.className = 'form-error';
+    message.setAttribute('role', 'alert');
+    message.hidden = false;
+  }
+}
+
 if (typeof document !== 'undefined' && document.getElementById('edit-form')) {
-  import('./edit-config.js').then(({ default: config }) => initEditPage({ doc: document, search: location.search, config }));
+  bootEditPage({ doc: document, search: location.search, loadConfig: () => import('./edit-config.js').then((m) => m.default) });
 }

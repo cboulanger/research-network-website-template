@@ -389,11 +389,17 @@ function openBrowser(url) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  let ntfyConfig = null;
+  try {
+    ntfyConfig = getPublicEditConfig();
+  } catch (err) {
+    console.warn(`Public edit inbox disabled: ${err.message}`);
+  }
   const server = createServer({
     contentPath: process.env.CONTENT_PATH || './content',
     schemaDir: path.join(__dirname, '..', 'schema'),
     editorDir: path.join(__dirname, 'editor'),
-    ntfyConfig: getPublicEditConfig(),
+    ntfyConfig,
   });
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {

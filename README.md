@@ -285,8 +285,9 @@ accepts the submission in the editor.
   atomically; a corrupt file is moved aside to
   `inbox.json.corrupt-<timestamp>` and the inbox starts empty).
 - **Limits and trust.** ntfy.sh keeps messages about 12 h and allows 4 KB per
-  message (the form checks this before sending); self-host and set
-  `NTFY_SERVER` for more. Anyone who knows the topic can read and post to it,
+  message. The form enforces a fixed 4096-byte limit regardless of server, so
+  self-hosting (set `NTFY_SERVER`) is for longer retention and access control,
+  not bigger messages. Anyone who knows the topic can read and post to it,
   so every message is validated against the schema and reviewed by hand;
   submissions that fail validation are silently dropped (the inbox reports
   how many). Pending entries are not capped, so anyone can flood the topic:

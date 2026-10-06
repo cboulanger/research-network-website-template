@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { initEditPage } from '../assets/js/edit-page.js';
+import { initEditPage, bootEditPage } from '../assets/js/edit-page.js';
 
 const memberSchema = {
   type: 'array',
@@ -90,4 +90,34 @@ test('a failing post shows the error and re-enables the button', async () => {
   await submit(dom);
   assert.match(dom.window.document.getElementById('edit-message').textContent, /boom/);
   assert.equal(dom.window.document.querySelector('button[type=submit]').disabled, false);
+});
+
+test('keyless types reject non-integer ids without rendering a form', async () => {
+  for (const search of ['?type=events&id=', '?type=events&id=1e0', '?type=events&id=-1', '?type=events&id=0x1', '?type=events&id=1.0', '?type=events&id=%201']) {
+    const ctx = setup(search);
+    await ctx.ready;
+    const doc = ctx.dom.window.document;
+    assert.match(doc.getElementById('edit-message').textContent, /no longer exists/, search);
+    assert.equal(doc.getElementById('edit-form').children.length, 0, search);
+  }
+  const ok = setup('?type=events&id=0');
+  await ok.ready;
+  assert.equal(ok.dom.window.document.querySelector('#field-title').value, 'zero');
+});
+
+test('errors are announced with role=alert', async () => {
+  const ctx = setup('?type=members&id=nobody');
+  await ctx.ready;
+  const msg = ctx.dom.window.document.getElementById('edit-message');
+  assert.equal(msg.getAttribute('role'), 'alert');
+  assert.equal(msg.className, 'form-error');
+});
+
+test('bootEditPage shows an error when the config cannot be loaded', async () => {
+  const dom = new JSDOM('<h1 id="edit-title"></h1><div id="edit-message" hidden></div><form id="edit-form"></form>');
+  await bootEditPage({ doc: dom.window.document, search: '?type=members&new', loadConfig: async () => { throw new Error('stale page'); } });
+  const msg = dom.window.document.getElementById('edit-message');
+  assert.equal(msg.hidden, false);
+  assert.equal(msg.className, 'form-error');
+  assert.match(msg.textContent, /stale page/);
 });
