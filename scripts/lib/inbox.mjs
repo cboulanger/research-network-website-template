@@ -2,7 +2,7 @@
 // Messages are validated against the public (submission) schema and kept as
 // "pending" in a local state file until the reviewer accepts or rejects them,
 // so they survive ntfy's short message retention.
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import Ajv from 'ajv';
 import { EDITABLE_TYPES, checkEnvelope, ntfyUrl } from '../../assets/js/ntfy.js';
@@ -56,18 +56,42 @@ export function createInbox({ statePath, config, types, loadRecords, fetchFn }) 
       .map((t) => [t.name, { ...t, validate: ajv.compile(toSubmissionSchema(t.schema).items) }])
   );
 
+  const emptyState = () => ({ lastId: null, pending: {}, resolved: [] });
+  const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+  // A damaged state file must not take the inbox down, nor be silently
+  // destroyed: move it aside and start from an empty state.
+  async function quarantine() {
+    await rename(statePath, `${statePath}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+    return emptyState();
+  }
+
   async function readState() {
+    let text;
     try {
-      return { lastId: null, pending: {}, resolved: [], ...JSON.parse(await readFile(statePath, 'utf8')) };
+      text = await readFile(statePath, 'utf8');
     } catch (err) {
-      if (err.code === 'ENOENT') return { lastId: null, pending: {}, resolved: [] };
+      if (err.code === 'ENOENT') return emptyState();
       throw err;
     }
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (err) {
+      if (err instanceof SyntaxError) return quarantine();
+      throw err;
+    }
+    if (!isPlainObject(parsed) || !isPlainObject(parsed.pending ?? {}) || !Array.isArray(parsed.resolved ?? [])) {
+      return quarantine();
+    }
+    return { ...emptyState(), ...parsed };
   }
 
   async function writeState(state) {
     await mkdir(path.dirname(statePath), { recursive: true });
-    await writeFile(statePath, JSON.stringify(state, null, 2) + '\n');
+    const tmp = `${statePath}.tmp`;
+    await writeFile(tmp, JSON.stringify(state, null, 2) + '\n');
+    await rename(tmp, statePath);
   }
 
   // Schema-valid is not enough: the id rules keep a submission from addressing
@@ -87,7 +111,7 @@ export function createInbox({ statePath, config, types, loadRecords, fetchFn }) 
     let dropped = 0;
     for (const m of messages) {
       state.lastId = m.id;
-      if (state.pending[m.id] || state.resolved.includes(m.id)) continue;
+      if (Object.hasOwn(state.pending, m.id) || state.resolved.includes(m.id)) continue;
       let parsed;
       try {
         parsed = JSON.parse(m.message);
@@ -146,7 +170,7 @@ export function createInbox({ statePath, config, types, loadRecords, fetchFn }) 
 
   async function resolve(id) {
     const state = await readState();
-    if (!state.pending[id]) return false;
+    if (!Object.hasOwn(state.pending, id)) return false;
     delete state.pending[id];
     state.resolved = [...state.resolved, id].slice(-1000);
     await writeState(state);

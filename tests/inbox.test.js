@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { getEditableTypes } from '../scripts/lib/editable-types.mjs';
@@ -140,4 +140,70 @@ test('end to end against a fake ntfy server: postEnvelope -> refresh -> list', a
   } finally {
     server.close();
   }
+});
+
+test('update whose data.id differs from the envelope id is dropped', async () => {
+  const update = buildEnvelope({
+    type: 'members', op: 'update', id: 'adler-ada',
+    data: { id: 'someone-else', lastname: 'A', firstname: 'B', affiliation: 'C' },
+  });
+  const { inbox } = await makeInbox({}, [{ id: 'u1', message: update }]);
+  assert.deepEqual(await inbox.refresh(), { dropped: 1 });
+  assert.deepEqual(await inbox.list(), []);
+});
+
+test('update of an id-less type without base is dropped', async () => {
+  const update = buildEnvelope({ type: 'events', op: 'update', id: '0', data: { date: '2021-01-01', title: 'b2' } });
+  const { inbox } = await makeInbox({ events: [{ date: '2021-01-01', title: 'b' }] }, [{ id: 'e1', message: update }]);
+  assert.deepEqual(await inbox.refresh(), { dropped: 1 });
+});
+
+test('corrupt state file is quarantined and treated as empty', async () => {
+  const { inbox, statePath } = await makeInbox({}, [{ id: 'm1', message: env() }]);
+  await writeFile(statePath, '{ not json');
+  assert.deepEqual(await inbox.refresh(), { dropped: 0 });
+  assert.equal((await inbox.list()).length, 1);
+  const files = await readdir(path.dirname(statePath));
+  const quarantined = files.filter((f) => f.startsWith('inbox.json.corrupt-'));
+  assert.equal(quarantined.length, 1);
+  assert.equal(await readFile(path.join(path.dirname(statePath), quarantined[0]), 'utf8'), '{ not json');
+});
+
+test('wrong-shape state is treated as empty', async () => {
+  for (const bad of [{ pending: [], resolved: [] }, { pending: {}, resolved: {} }, [], null]) {
+    const { inbox, statePath } = await makeInbox({}, [{ id: 'm1', message: env() }]);
+    await writeFile(statePath, JSON.stringify(bad));
+    await inbox.refresh();
+    assert.equal((await inbox.list()).length, 1);
+    assert.equal((await readdir(path.dirname(statePath))).filter((f) => f.includes('.corrupt-')).length, 1);
+  }
+});
+
+test('a failed poll keeps pending entries and does not advance lastId', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'inbox-'));
+  const statePath = path.join(dir, 'inbox.json');
+  let ok = true;
+  const fetchFn = async () => (ok
+    ? { ok: true, status: 200, text: async () => line({ id: 'm1', message: env() }) }
+    : { ok: false, status: 503 });
+  const inbox = createInbox({ statePath, config, types, loadRecords: async () => [], fetchFn });
+  await inbox.refresh();
+  ok = false;
+  await assert.rejects(inbox.refresh(), /503/);
+  const state = JSON.parse(await readFile(statePath, 'utf8'));
+  assert.equal(state.lastId, 'm1');
+  assert.deepEqual(Object.keys(state.pending), ['m1']);
+  assert.equal((await inbox.list()).length, 1);
+});
+
+test('inherited property names are not treated as existing ids', async () => {
+  const { inbox } = await makeInbox({}, [{ id: 'm1', message: env() }]);
+  await inbox.refresh();
+  for (const id of ['constructor', '__proto__', 'toString']) assert.equal(await inbox.resolve(id), false);
+});
+
+test('a message whose ntfy id is an inherited name is still collected', async () => {
+  const { inbox } = await makeInbox({}, [{ id: 'constructor', message: env() }]);
+  await inbox.refresh();
+  assert.equal((await inbox.list()).length, 1);
 });

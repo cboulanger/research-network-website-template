@@ -419,3 +419,34 @@ test('a failing ntfy poll becomes a warning but pending entries are still listed
     await ctx.close();
   }
 });
+
+test('inbox POST with a JSON null body or a malformed id escape returns 400', async () => {
+  const ntfyFetch = async () => ({ ok: true, status: 200, text: async () => '' });
+  const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    assert.equal((await fetch(`${ctx.base}/api/inbox/x`, { method: 'POST', headers, body: 'null' })).status, 400);
+    assert.equal((await fetch(`${ctx.base}/api/inbox/%E0%A4%A`, { method: 'POST', headers, body: JSON.stringify({ action: 'reject' }) })).status, 400);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/inbox returns a warning instead of 500 when the inbox cannot be listed', async () => {
+  const ntfyFetch = async () => ({ ok: true, status: 200, text: async () => '' });
+  const dir = await mkdtemp(path.join(tmpdir(), 'inbox-'));
+  // A directory where the state file should be makes every read fail (EISDIR).
+  const inboxStatePath = path.join(dir, 'inbox.json');
+  await mkdir(inboxStatePath);
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const res = await fetch(`${ctx.base}/api/inbox`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.entries, []);
+    assert.ok(body.warning);
+  } finally {
+    await ctx.close();
+  }
+});

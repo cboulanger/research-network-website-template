@@ -230,14 +230,29 @@ export function createServer({
         } catch (err) {
           warning = `Could not fetch new submissions: ${err.message}`;
         }
-        return sendJSON(res, 200, { enabled: true, entries: await inbox.list(), dropped, warning });
+        let entries = [];
+        try {
+          entries = await inbox.list();
+        } catch (err) {
+          warning = `Could not read the inbox: ${err.message}`;
+        }
+        return sendJSON(res, 200, { enabled: true, entries, dropped, warning });
       }
       if (parts.length === 3 && req.method === 'POST') {
         const body = await readJSONBody(req);
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+          return sendError(res, 400, 'Request body must be a JSON object');
+        }
         if (body.action !== 'accept' && body.action !== 'reject') {
           return sendError(res, 400, 'action must be "accept" or "reject"');
         }
-        const found = await inbox.resolve(decodeURIComponent(parts[2]));
+        let id;
+        try {
+          id = decodeURIComponent(parts[2]);
+        } catch {
+          return sendError(res, 400, 'Malformed submission id');
+        }
+        const found = await inbox.resolve(id);
         return found ? sendJSON(res, 204, null) : sendError(res, 404, 'No such submission');
       }
     }
