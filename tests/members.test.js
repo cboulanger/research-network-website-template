@@ -148,3 +148,9 @@ test('participantSlugs collects ids of known project participants', () => {
   ];
   assert.deepEqual([...participantSlugs(projects, members)].sort(), ['adler-ada', 'lee-jordan']);
 });
+
+test('avatar colour does not depend on the email address', () => {
+  const a = { firstname: 'Ada', lastname: 'Adler', affiliation: 'X', id: 'adler-ada', email: 'one@example.org' };
+  const b = { ...a, email: 'two@example.org' };
+  assert.equal(renderMemberCard(a), renderMemberCard(b));
+});

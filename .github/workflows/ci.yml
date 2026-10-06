@@ -45,6 +45,8 @@ jobs:
       - run: npm run build
         env:
           CONTENT_PATH: ${{ vars.CONTENT_PATH }}
+          NTFY_TOPIC: ${{ vars.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ vars.NTFY_SERVER }}
           CONTENT_USERNAME: ${{ secrets.CONTENT_USERNAME }}
           CONTENT_PASSWORD: ${{ secrets.CONTENT_PASSWORD }}
       - uses: actions/configure-pages@v5

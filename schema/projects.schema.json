@@ -8,13 +8,14 @@
     "additionalProperties": false,
     "required": ["id", "title", "participants"],
     "properties": {
-      "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "x-editor": { "readOnly": true, "placeholder": "Assigned automatically from the title" } },
-      "title": { "type": "string", "minLength": 1 },
-      "subtitle": { "type": "string" },
-      "description": { "type": "string", "x-editor": { "widget": "textarea", "rows": 15 } },
-      "url": { "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
-      "image_url": { "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$" },
+      "id": { "title": "ID", "type": "string", "pattern": "^[a-z0-9-]+$", "x-editor": { "readOnly": true, "placeholder": "Assigned automatically from the title" } },
+      "title": { "title": "Project title", "type": "string", "minLength": 1 },
+      "subtitle": { "title": "Subtitle", "type": "string" },
+      "description": { "title": "Description", "type": "string", "x-editor": { "widget": "textarea", "rows": 15 } },
+      "url": { "title": "Project web page (URL)", "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "image_url": { "title": "Image (URL or file name)", "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$" },
       "participants": {
+        "title": "Participants",
         "type": "array",
         "items": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
       }

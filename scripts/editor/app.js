@@ -1,3 +1,6 @@
+import { editorHints, renderRecordFields, collectRecordData } from '/assets/js/record-form.js';
+import { renderInboxEntries } from '/inbox-view.js';
+
 const state = {
   types: [],
   currentType: null,
@@ -5,6 +8,8 @@ const state = {
   records: [],
   members: [],
   editingKey: null,
+  inboxEntry: null,
+  inboxSaved: false, // record already saved during this inbox review
 };
 
 // Object schemas (site, publications) are a single record edited in place;
@@ -138,22 +143,6 @@ function recordKey(record, index) {
   return state.currentType.keyField ? record[state.currentType.keyField] : String(index);
 }
 
-// Presentation hints live in the schema under "x-editor": on the array schema
-// (sort, columns) and on individual properties (widget, rows, readOnly, placeholder).
-function editorHints(schema) {
-  return schema?.['x-editor'] || {};
-}
-
-function todayISO() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
-function memberName(member) {
-  return `${member.lastname}, ${member.firstname}`;
-}
-
 // Columns shown in the record list: the schema's "columns" hint, else the first property.
 function listColumns() {
   const columns = editorHints(state.schema).columns;
@@ -236,175 +225,10 @@ function showFormError(message, details) {
   el.hidden = false;
 }
 
-function buildStringListField(key, values) {
-  const container = document.createElement('div');
-  container.dataset.field = key;
-  container.className = 'string-list';
-
-  function addRow(value = '') {
-    const row = document.createElement('div');
-    row.className = 'array-row';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = value;
-    const removeButton = document.createElement('button');
-    removeButton.type = 'button';
-    removeButton.textContent = 'Remove';
-    removeButton.addEventListener('click', () => row.remove());
-    row.append(input, removeButton);
-    container.appendChild(row);
-  }
-
-  values.forEach((v) => addRow(v));
-  const addButton = document.createElement('button');
-  addButton.type = 'button';
-  addButton.textContent = 'Add';
-  addButton.addEventListener('click', () => addRow());
-  container.appendChild(addButton);
-  return container;
-}
-
-function buildParticipantPicker(participantIds) {
-  const container = document.createElement('div');
-  container.className = 'field participant-picker';
-  container.dataset.field = 'participants';
-
-  const label = document.createElement('label');
-  label.textContent = 'participants';
-  container.appendChild(label);
-
-  const list = document.createElement('ul');
-  list.className = 'participant-list';
-  container.appendChild(list);
-
-  const search = document.createElement('input');
-  search.type = 'text';
-  search.placeholder = 'Search members by name…';
-  container.appendChild(search);
-
-  const results = document.createElement('div');
-  results.className = 'participant-search-results';
-  container.appendChild(results);
-
-  let currentIds = [...participantIds];
-
-  function renderList() {
-    list.innerHTML = '';
-    currentIds.forEach((id) => {
-      const member = state.members.find((m) => m.id === id);
-      const li = document.createElement('li');
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = member ? memberName(member) : id;
-      const removeButton = document.createElement('button');
-      removeButton.type = 'button';
-      removeButton.textContent = 'Remove';
-      removeButton.addEventListener('click', () => {
-        currentIds = currentIds.filter((existingId) => existingId !== id);
-        renderList();
-      });
-      li.append(nameSpan, removeButton);
-      list.appendChild(li);
-    });
-  }
-
-  function renderResults(query) {
-    const q = query.trim().toLowerCase();
-    results.innerHTML = '';
-    if (!q) return;
-    state.members
-      .filter((m) => !currentIds.includes(m.id) && `${m.firstname} ${memberName(m)}`.toLowerCase().includes(q))
-      .forEach((m) => {
-        const row = document.createElement('div');
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = memberName(m);
-        const addButton = document.createElement('button');
-        addButton.type = 'button';
-        addButton.textContent = 'Add';
-        addButton.addEventListener('click', () => {
-          currentIds.push(m.id);
-          search.value = '';
-          results.innerHTML = '';
-          renderList();
-        });
-        row.append(nameSpan, addButton);
-        results.appendChild(row);
-      });
-  }
-
-  search.addEventListener('input', () => renderResults(search.value));
-
-  container.getParticipantIds = () => currentIds;
-  renderList();
-  return container;
-}
-
-function buildField(key, propSchema, value, required) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'field';
-  const hints = editorHints(propSchema);
-  const readOnly = Boolean(hints.readOnly);
-  const label = document.createElement('label');
-  label.textContent = key + (required && !readOnly ? ' *' : '');
-  label.setAttribute('for', `field-${key}`);
-  wrapper.appendChild(label);
-  if (propSchema.description) {
-    const help = document.createElement('div');
-    help.className = 'field-help';
-    help.textContent = propSchema.description;
-    wrapper.appendChild(help);
-  }
-
-  if (propSchema.type === 'array' && propSchema.items?.type === 'string') {
-    wrapper.appendChild(buildStringListField(key, value || []));
-    return wrapper;
-  }
-
-  if (Array.isArray(propSchema.enum)) {
-    const select = document.createElement('select');
-    select.id = `field-${key}`;
-    select.name = key;
-    const selected = value ?? propSchema.default ?? propSchema.enum[0];
-    for (const option of propSchema.enum) {
-      const opt = document.createElement('option');
-      opt.value = option;
-      opt.textContent = option;
-      if (option === selected) opt.selected = true;
-      select.appendChild(opt);
-    }
-    if (required && !readOnly) select.required = true;
-    if (readOnly) select.disabled = true;
-    wrapper.appendChild(select);
-    return wrapper;
-  }
-
-  const input = hints.widget === 'textarea' ? document.createElement('textarea') : document.createElement('input');
-  if (input.tagName === 'INPUT') input.type = hints.widget === 'date' ? 'date' : 'text';
-  if (hints.rows) input.rows = hints.rows;
-  input.id = `field-${key}`;
-  input.name = key;
-  input.value = value ?? (hints.widget === 'date' ? todayISO() : '');
-  // type=date ignores pattern and always yields YYYY-MM-DD, so only text inputs get it.
-  if (propSchema.pattern && input.type === 'text') input.pattern = propSchema.pattern;
-  if (required && !readOnly) input.required = true;
-  if (readOnly) input.readOnly = true;
-  if (hints.placeholder) input.placeholder = hints.placeholder;
-  wrapper.appendChild(input);
-  return wrapper;
-}
-
 function renderForm(record) {
   const form = document.getElementById('record-form');
-  const properties = recordSchema().properties;
-  const required = new Set(recordSchema().required || []);
   form.innerHTML = '';
-
-  Object.entries(properties).forEach(([key, propSchema]) => {
-    if (state.currentType.name === 'projects' && key === 'participants') {
-      form.appendChild(buildParticipantPicker(record.participants || []));
-      return;
-    }
-    form.appendChild(buildField(key, propSchema, record[key], required.has(key)));
-  });
+  renderRecordFields(form, { itemSchema: recordSchema(), record, typeName: state.currentType.name, members: state.members });
 
   const actions = document.createElement('div');
   actions.className = 'field';
@@ -415,40 +239,31 @@ function renderForm(record) {
   form.querySelector('#cancel-button')?.addEventListener('click', hideForm);
 }
 
-function openForm(key) {
+function openForm(key, prefill, entry = null) {
   state.editingKey = key;
-  document.getElementById('form-title').textContent = key === null ? `New ${state.currentType.name}` : `Edit ${state.currentType.name}`;
+  state.inboxEntry = entry;
+  state.inboxSaved = false;
+  document.getElementById('form-title').textContent = state.inboxEntry
+    ? `Review submission: ${state.currentType.name}`
+    : key === null ? `New ${state.currentType.name}` : `Edit ${state.currentType.name}`;
   hideFormError();
-  renderForm(key === null ? {} : findRecordByKey(key));
+  renderForm(prefill ?? (key === null ? {} : findRecordByKey(key)));
   document.getElementById('form-panel').hidden = false;
 }
 
 function hideForm() {
   document.getElementById('form-panel').hidden = true;
   state.editingKey = null;
+  state.inboxEntry = null;
+  state.inboxSaved = false;
 }
 
 function collectFormData() {
-  const form = document.getElementById('record-form');
-  const properties = recordSchema().properties;
-  const data = {};
-  Object.keys(properties).forEach((key) => {
-    if (state.currentType.name === 'projects' && key === 'participants') {
-      data.participants = form.querySelector('[data-field="participants"]').getParticipantIds();
-      return;
-    }
-    const propSchema = properties[key];
-    if (propSchema.type === 'array' && propSchema.items?.type === 'string') {
-      const container = form.querySelector(`[data-field="${key}"]`);
-      const items = [...container.querySelectorAll('input')].map((i) => i.value).filter((v) => v.trim() !== '');
-      // Optional lists in a singleton are omitted when empty (they often have minItems: 1).
-      if (items.length || !isSingleton()) data[key] = items;
-      return;
-    }
-    const input = form.querySelector(`#field-${key}`);
-    if (input.value !== '') data[key] = input.value;
+  return collectRecordData(document.getElementById('record-form'), {
+    itemSchema: recordSchema(),
+    typeName: state.currentType.name,
+    singleton: isSingleton(),
   });
-  return data;
 }
 
 async function deleteRecordByKey(key) {
@@ -494,18 +309,35 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
       showFormMessage('Saved.');
       return;
     }
-    if (state.editingKey === null) {
-      await fetchJSON(`/api/data/${name}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetchJSON(`/api/data/${name}/${encodeURIComponent(state.editingKey)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+    if (!state.inboxSaved) {
+      if (state.editingKey === null) {
+        await fetchJSON(`/api/data/${name}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      } else {
+        await fetchJSON(`/api/data/${name}/${encodeURIComponent(state.editingKey)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      }
+      if (state.inboxEntry) state.inboxSaved = true;
+    }
+    if (state.inboxEntry) {
+      const entry = state.inboxEntry;
+      try {
+        await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'accept' }),
+        });
+      } catch (err) {
+        showFormError(`The record was saved, but it could not be removed from the inbox (${err.message}). Press Save again to retry removing it — the record will not be saved twice.`);
+        return;
+      }
+      loadInbox();
     }
     await selectType(name);
   } catch (err) {
@@ -568,6 +400,87 @@ fetchJSON('/api/site')
     link.hidden = false;
   })
   .catch(() => {}); // the link is a convenience; the editor works without it
+
+const inboxPanel = document.getElementById('inbox-panel');
+let inboxEntries = [];
+let inboxTimer = null;
+let inboxBusy = false;
+const baseTitle = document.title;
+
+// Fetches the inbox (the server polls ntfy first). `quiet` is the background
+// poll: it skips the "Checking…" flash and never overlaps another request.
+async function loadInbox({ quiet = false } = {}) {
+  if (quiet && inboxBusy) return false;
+  inboxBusy = true;
+  const status = document.getElementById('inbox-status');
+  if (!quiet) status.textContent = 'Checking for submissions…';
+  try {
+    const body = await fetchJSON('/api/inbox');
+    if (!body.enabled) return false;
+    const known = new Set(inboxEntries.map((e) => e.id));
+    const fresh = body.entries.filter((e) => !known.has(e.id)).length;
+    inboxEntries = body.entries;
+    document.getElementById('inbox-tool').hidden = false;
+    document.getElementById('inbox-button').textContent = `Inbox (${inboxEntries.length})`;
+    document.title = inboxEntries.length ? `(${inboxEntries.length}) ${baseTitle}` : baseTitle;
+    const notes = [];
+    if (quiet && fresh) notes.push(`${fresh} new submission(s).`);
+    if (body.dropped) notes.push(`${body.dropped} invalid message(s) ignored.`);
+    if (body.warning) notes.push(body.warning);
+    status.textContent = notes.join(' ');
+    status.classList.toggle('error', Boolean(body.warning));
+    renderInboxEntries(document.getElementById('inbox-list'), inboxEntries, { onReview: reviewSubmission, onReject: rejectSubmission });
+    if (!inboxTimer && body.pollIntervalMs) {
+      inboxTimer = setInterval(() => {
+        if (!document.hidden) loadInbox({ quiet: true });
+      }, body.pollIntervalMs);
+    }
+    return true;
+  } catch (err) {
+    status.textContent = err.message;
+    status.classList.add('error');
+    return false;
+  } finally {
+    inboxBusy = false;
+  }
+}
+
+// Catch up right away when the tab comes back to the foreground.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && inboxTimer) loadInbox({ quiet: true });
+});
+
+async function reviewSubmission(staleEntry) {
+  inboxPanel.hidden = true;
+  // Keyless collections are addressed by array index, so re-fetch to make sure it still points at the right record.
+  const refreshed = await loadInbox();
+  const entry = refreshed ? inboxEntries.find((e) => e.id === staleEntry.id) : undefined;
+  if (!entry) {
+    alert('This submission is no longer pending.');
+    return;
+  }
+  await selectType(entry.type);
+  if (!state.currentType || state.currentType.name !== entry.type || isSingleton()) {
+    alert(`Cannot review this submission: "${entry.type}" is not a collection that accepts submissions.`);
+    return;
+  }
+  openForm(entry.key, entry.prefill, entry);
+}
+
+async function rejectSubmission(entry) {
+  if (!confirm('Reject this submission?')) return;
+  await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reject' }),
+  });
+  await loadInbox();
+}
+
+document.getElementById('inbox-button').addEventListener('click', () => { inboxPanel.hidden = false; });
+document.getElementById('inbox-close').addEventListener('click', () => { inboxPanel.hidden = true; });
+document.getElementById('inbox-refresh').addEventListener('click', () => loadInbox());
+loadInbox();
 
 loadTypes().then(() => {
   if (state.types.length) selectType(state.types[0].name);

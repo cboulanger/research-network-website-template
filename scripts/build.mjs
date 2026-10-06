@@ -16,6 +16,9 @@ import { renderPublicationsTeaser, renderPublications } from '../assets/js/publi
 import { renderMembers, renderMemberList, participantSlugs } from '../assets/js/members.js';
 import { buildGraphData, renderListView, sanitizeGraphData } from '../assets/js/projects-graph.js';
 
+import { getPublicEditConfig, writePublicEditAssets } from './lib/public-edit.mjs';
+
+const editScripts = (content) => (content.editConfig ? ['assets/js/edit-mode.js'] : []);
 const PUBLIC_DIR = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public');
 const KNOWN_THEMES = ['light', 'dark', 'slate', 'forest', 'sepia'];
 
@@ -156,7 +159,7 @@ async function buildMembersPage(content) {
       favicon: site.favicon,
       navExclude: content.navExclude,
       mainHTML,
-      bodyScripts: ['assets/js/members.js'],
+      bodyScripts: ['assets/js/members.js', ...editScripts(content)],
     })
   );
 }
@@ -175,6 +178,7 @@ async function buildEventsPage(content) {
       favicon: site.favicon,
       navExclude: content.navExclude,
       mainHTML,
+      bodyScripts: editScripts(content),
     })
   );
 }
@@ -193,6 +197,7 @@ async function buildNewsPage(content) {
       favicon: site.favicon,
       navExclude: content.navExclude,
       mainHTML,
+      bodyScripts: editScripts(content),
     })
   );
 }
@@ -302,14 +307,36 @@ async function buildProjectsPage(content) {
       navExclude: content.navExclude,
       mainHTML,
       vendorScripts: projects.length ? ['assets/vendor/d3.min.js'] : [],
-      bodyScripts: projects.length ? ['assets/js/projects-graph.js'] : [],
+      bodyScripts: [...(projects.length ? ['assets/js/projects-graph.js'] : []), ...editScripts(content)],
+    })
+  );
+}
+
+async function buildEditPage(content) {
+  const { site } = content;
+  const mainHTML = `
+    <h1 id="edit-title">Edit</h1>
+    <p>Your change is sent to the editors and published after review.</p>
+    <div id="edit-message" role="status" hidden></div>
+    <form id="edit-form"></form>`;
+  await writeFile(
+    path.join(PUBLIC_DIR, 'edit.html'),
+    renderPage({
+      title: `Edit — ${site.bannerLabel}`,
+      activePage: 'edit',
+      bannerLabel: site.bannerLabel,
+      favicon: site.favicon,
+      navExclude: content.navExclude,
+      mainHTML,
+      bodyScripts: ['assets/js/edit-page.js'],
     })
   );
 }
 
 async function main() {
   const contentDir = await resolveContent();
-  const content = { ...(await loadContent(contentDir)), contentDir };
+  const editConfig = getPublicEditConfig();
+  const content = { ...(await loadContent(contentDir)), contentDir, editConfig };
 
   await mkdir(PUBLIC_DIR, { recursive: true });
   await buildIndexPage(content);
@@ -319,6 +346,7 @@ async function main() {
   await buildPublicationsPage(content);
   await buildPagesDocs(content);
   await buildProjectsPage(content);
+  if (editConfig) await buildEditPage(content);
 
   await writeThemedCSS(content.site);
   await cp(path.join(content.contentDir, 'images'), path.join(PUBLIC_DIR, 'images'), { recursive: true });
@@ -326,6 +354,7 @@ async function main() {
   for (const file of ['members.js', 'projects-graph.js', 'page-back-link.js', 'shared.js', 'publications.js']) {
     await cp(path.join('assets', 'js', file), path.join(PUBLIC_DIR, 'assets', 'js', file));
   }
+  if (editConfig) await writePublicEditAssets({ publicDir: PUBLIC_DIR, schemaDir: 'schema', content, config: editConfig });
   if (content.projects.length) {
     await mkdir(path.join(PUBLIC_DIR, 'assets', 'vendor'), { recursive: true });
     await cp('node_modules/d3/dist/d3.min.js', path.join(PUBLIC_DIR, 'assets', 'vendor', 'd3.min.js'));

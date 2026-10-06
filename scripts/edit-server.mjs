@@ -9,6 +9,8 @@ import { readContentFile, writeContentFile } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
+import { createInbox } from './lib/inbox.mjs';
+import { getPublicEditConfig } from './lib/public-edit.mjs';
 import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
 import { computeMemberId, slugify } from '../assets/js/shared.js';
 
@@ -21,7 +23,14 @@ const STATIC_FILES = {
   '/index.html': { file: 'index.html', type: 'text/html' },
   '/app.js': { file: 'app.js', type: 'text/javascript' },
   '/style.css': { file: 'style.css', type: 'text/css' },
+  '/inbox-view.js': { file: 'inbox-view.js', type: 'text/javascript' },
 };
+
+const DEFAULT_INBOX_POLL_MS = 60_000;
+const MIN_INBOX_POLL_MS = 10_000;
+
+// Browser modules shared between the public site and the editor.
+const SHARED_JS = /^\/assets\/js\/(record-form)\.js$/;
 
 const PREVIEW_MIME = {
   '.html': 'text/html',
@@ -61,13 +70,22 @@ export function createServer({
   waitFn = waitForDeployStatus,
   buildFn = () => runBuild({ buildScript: path.join(editorDir, '..', 'build.mjs') }),
   publicDir = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public'),
+  ntfyConfig = null,
+  inboxStatePath = path.resolve('.local', 'inbox.json'),
+  ntfyFetch,
+  inboxPollIntervalMs = DEFAULT_INBOX_POLL_MS,
 }) {
+  // The editor polls the inbox at this interval; never faster than ntfy is happy to be asked.
+  const pollIntervalMs = Math.max(MIN_INBOX_POLL_MS, Number(inboxPollIntervalMs) || DEFAULT_INBOX_POLL_MS);
   const ajv = new Ajv({ allErrors: true, strict: true });
   // Presentation hints for the editor UI (widget, rows, readOnly, sort, label); not used for validation.
   ajv.addKeyword('x-editor');
   const types = getEditableTypes(schemaDir);
   const typeByName = new Map(types.map((t) => [t.name, t]));
   const validators = new Map(types.map((t) => [t.name, ajv.compile(t.schema)]));
+  const inbox = ntfyConfig
+    ? createInbox({ statePath: inboxStatePath, config: ntfyConfig, types, loadRecords, fetchFn: ntfyFetch })
+    : null;
 
   function sendJSON(res, statusCode, body) {
     const text = body === null ? '' : JSON.stringify(body);
@@ -206,6 +224,46 @@ export function createServer({
       }
     }
 
+    if (parts[1] === 'inbox') {
+      if (!inbox) {
+        if (parts.length === 2 && req.method === 'GET') return sendJSON(res, 200, { enabled: false });
+        return sendError(res, 404, 'Inbox is not enabled');
+      }
+      if (parts.length === 2 && req.method === 'GET') {
+        let dropped = 0;
+        let warning = null;
+        try {
+          ({ dropped } = await inbox.refresh());
+        } catch (err) {
+          warning = `Could not fetch new submissions: ${err.message}`;
+        }
+        let entries = [];
+        try {
+          entries = await inbox.list();
+        } catch (err) {
+          warning = `Could not read the inbox: ${err.message}`;
+        }
+        return sendJSON(res, 200, { enabled: true, entries, dropped, warning, pollIntervalMs });
+      }
+      if (parts.length === 3 && req.method === 'POST') {
+        const body = await readJSONBody(req);
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+          return sendError(res, 400, 'Request body must be a JSON object');
+        }
+        if (body.action !== 'accept' && body.action !== 'reject') {
+          return sendError(res, 400, 'action must be "accept" or "reject"');
+        }
+        let id;
+        try {
+          id = decodeURIComponent(parts[2]);
+        } catch {
+          return sendError(res, 400, 'Malformed submission id');
+        }
+        const found = await inbox.resolve(id);
+        return found ? sendJSON(res, 204, null) : sendError(res, 404, 'No such submission');
+      }
+    }
+
     if (parts[1] === 'data' && parts.length >= 3) {
       const name = parts[2];
       const type = typeByName.get(name);
@@ -279,6 +337,12 @@ export function createServer({
   }
 
   function serveStatic(res, pathname) {
+    const shared = SHARED_JS.exec(pathname);
+    if (shared) {
+      const body = readFileSync(path.join(editorDir, '..', '..', 'assets', 'js', `${shared[1]}.js`));
+      res.writeHead(200, { 'Content-Type': 'text/javascript' });
+      return res.end(body);
+    }
     const entry = STATIC_FILES[pathname];
     if (!entry) return sendError(res, 404, 'Not found');
     const body = readFileSync(path.join(editorDir, entry.file));
@@ -331,10 +395,18 @@ function openBrowser(url) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  let ntfyConfig = null;
+  try {
+    ntfyConfig = getPublicEditConfig();
+  } catch (err) {
+    console.warn(`Public edit inbox disabled: ${err.message}`);
+  }
   const server = createServer({
     contentPath: process.env.CONTENT_PATH || './content',
     schemaDir: path.join(__dirname, '..', 'schema'),
     editorDir: path.join(__dirname, 'editor'),
+    ntfyConfig,
+    inboxPollIntervalMs: Number(process.env.INBOX_POLL_INTERVAL_MS) || undefined,
   });
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {

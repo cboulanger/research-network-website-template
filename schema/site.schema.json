@@ -5,12 +5,13 @@
   "additionalProperties": false,
   "required": ["bannerLabel", "title", "subtitle"],
   "properties": {
-    "bannerLabel": { "type": "string", "minLength": 1 },
-    "title": { "type": "string", "minLength": 1 },
-    "subtitle": { "type": "string", "minLength": 1 },
-    "favicon": { "type": "string", "minLength": 1 },
-    "logo": { "type": "string", "minLength": 1 },
+    "bannerLabel": { "title": "Short site name (banner)", "type": "string", "minLength": 1 },
+    "title": { "title": "Site title", "type": "string", "minLength": 1 },
+    "subtitle": { "title": "Subtitle", "type": "string", "minLength": 1 },
+    "favicon": { "title": "Favicon (file name)", "type": "string", "minLength": 1 },
+    "logo": { "title": "Logo (file name)", "type": "string", "minLength": 1 },
     "theme": {
+      "title": "Theme",
       "type": "string",
       "enum": ["light", "dark", "slate", "forest", "sepia"],
       "default": "light",

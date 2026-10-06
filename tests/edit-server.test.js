@@ -363,3 +363,119 @@ test('GET /api/site returns the resolved site URL', async () => {
     await ctx.close();
   }
 });
+
+test('the shared form module is served to the editor', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/assets/js/record-form.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /javascript/);
+    assert.match(await res.text(), /export function renderRecordFields/);
+    assert.equal((await fetch(`${ctx.base}/assets/js/../../package.json`)).status, 404);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/inbox reports disabled when no ntfy topic is configured', async () => {
+  const ctx = await startTestServer({});
+  try {
+    assert.deepEqual(await (await fetch(`${ctx.base}/api/inbox`)).json(), { enabled: false });
+    assert.equal((await fetch(`${ctx.base}/api/inbox/x`, { method: 'POST', body: '{}' })).status, 404);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('inbox endpoints list submissions and resolve them', async () => {
+  const message = JSON.stringify({ v: 1, type: 'news', op: 'add', ts: 't', data: { date: '2026-01-01', title: 'Hi', url: 'https://example.org' } });
+  const ntfyFetch = async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'n1', time: 1, event: 'message', message }) });
+  const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const body = await (await fetch(`${ctx.base}/api/inbox`)).json();
+    assert.equal(body.enabled, true);
+    assert.equal(body.entries.length, 1);
+    assert.equal(body.entries[0].data.title, 'Hi');
+    const post = (id, action) => fetch(`${ctx.base}/api/inbox/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    assert.equal((await post('n1', 'nonsense')).status, 400);
+    assert.equal((await post('n1', 'reject')).status, 204);
+    assert.equal((await post('n1', 'reject')).status, 404);
+    assert.deepEqual((await (await fetch(`${ctx.base}/api/inbox`)).json()).entries, []);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('a failing ntfy poll becomes a warning but pending entries are still listed', async () => {
+  const ntfyFetch = async () => ({ ok: false, status: 503 });
+  const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const body = await (await fetch(`${ctx.base}/api/inbox`)).json();
+    assert.match(body.warning, /503/);
+    assert.deepEqual(body.entries, []);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('inbox POST with a JSON null body or a malformed id escape returns 400', async () => {
+  const ntfyFetch = async () => ({ ok: true, status: 200, text: async () => '' });
+  const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    assert.equal((await fetch(`${ctx.base}/api/inbox/x`, { method: 'POST', headers, body: 'null' })).status, 400);
+    assert.equal((await fetch(`${ctx.base}/api/inbox/%E0%A4%A`, { method: 'POST', headers, body: JSON.stringify({ action: 'reject' }) })).status, 400);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/inbox returns a warning instead of 500 when the inbox cannot be listed', async () => {
+  const ntfyFetch = async () => ({ ok: true, status: 200, text: async () => '' });
+  const dir = await mkdtemp(path.join(tmpdir(), 'inbox-'));
+  // A directory where the state file should be makes every read fail (EISDIR).
+  const inboxStatePath = path.join(dir, 'inbox.json');
+  await mkdir(inboxStatePath);
+  const ctx = await startTestServer({}, { ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch });
+  try {
+    const res = await fetch(`${ctx.base}/api/inbox`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.entries, []);
+    assert.ok(body.warning);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('the inbox view module is served to the editor', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/inbox-view.js`);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /export function renderInboxEntries/);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('the inbox response tells the editor how often to poll (default 60s, never below 10s)', async () => {
+  const emptyPoll = async () => ({ ok: true, status: 200, text: async () => '' });
+  const interval = async (options) => {
+    const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+    const ctx = await startTestServer({}, {
+      ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch: emptyPoll, ...options,
+    });
+    try {
+      return (await (await fetch(`${ctx.base}/api/inbox`)).json()).pollIntervalMs;
+    } finally {
+      await ctx.close();
+    }
+  };
+  assert.equal(await interval({}), 60000);
+  assert.equal(await interval({ inboxPollIntervalMs: 30000 }), 30000);
+  assert.equal(await interval({ inboxPollIntervalMs: 1000 }), 10000);
+});
