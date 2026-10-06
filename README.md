@@ -201,9 +201,11 @@ beyond `127.0.0.1`.
 
 ### Build & preview button
 
-The sidebar's **Build & open local site** button (`POST /api/build`) runs the
+The sidebar's **Build & preview locally** button (`POST /api/build`) runs the
 same build as `npm run build`/CI against your current `CONTENT_PATH`, then
-opens the result in a new tab, served from `/preview/` by the editor itself
+opens the result in a new tab once the build is done (if the browser blocks
+the popup, click the "Open preview" link that appears next to the status),
+served from `/preview/` by the editor itself
 (so the projects graph and other same-origin fetches work, unlike opening
 `public/index.html` as a `file://` URL). Re-click it after further edits to
 rebuild and reopen.

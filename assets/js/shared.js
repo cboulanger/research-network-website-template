@@ -107,3 +107,12 @@ export function wirePortraitFallback(root = document) {
     );
   });
 }
+
+/**
+ * Parse a bare view name out of a URL hash (e.g. "#list"), or null if the
+ * hash isn't one of the allowed view names.
+ */
+export function parseViewHash(hash, allowed) {
+  const name = (hash || '').replace(/^#\.?/, '');
+  return allowed.includes(name) ? name : null;
+}

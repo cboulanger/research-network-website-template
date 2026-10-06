@@ -519,21 +519,21 @@ document.getElementById('preview-button').addEventListener('click', async (e) =>
   button.disabled = true;
   status.className = 'tool-status';
   status.textContent = 'Building…';
-  // Opened synchronously, still inside the click's user-activation window, so
-  // the browser doesn't treat it as an unrequested popup. Once the build
-  // finishes below, its location is filled in; a tab left on about:blank
-  // means the build failed (see the error branch). No "noopener": we need
-  // the window reference back to redirect it once the build is done, and
-  // this is our own local-only content (never a link to another site).
-  const previewTab = window.open();
   try {
     await fetchJSON('/api/build', { method: 'POST' });
-    status.textContent = 'Built.';
-    if (previewTab) previewTab.location = '/preview/index.html';
+    // The tab is opened only now, so it never shows a blank page while
+    // building. The await may have outlived the click's user-activation
+    // window and the browser may block the popup, so also offer a link.
+    status.textContent = 'Built. ';
+    const link = document.createElement('a');
+    link.href = '/preview/index.html';
+    link.target = '_blank';
+    link.textContent = 'Open preview';
+    status.append(link);
+    window.open(link.href, '_blank');
   } catch (err) {
     status.classList.add('error');
     setStatusText(status, err.message);
-    previewTab?.close();
   } finally {
     button.disabled = false;
   }
