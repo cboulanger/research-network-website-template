@@ -9,6 +9,7 @@ const state = {
   members: [],
   editingKey: null,
   inboxEntry: null,
+  inboxSaved: false, // record already saved during this inbox review
 };
 
 // Object schemas (site, publications) are a single record edited in place;
@@ -238,8 +239,10 @@ function renderForm(record) {
   form.querySelector('#cancel-button')?.addEventListener('click', hideForm);
 }
 
-function openForm(key, prefill) {
+function openForm(key, prefill, entry = null) {
   state.editingKey = key;
+  state.inboxEntry = entry;
+  state.inboxSaved = false;
   document.getElementById('form-title').textContent = state.inboxEntry
     ? `Review submission: ${state.currentType.name}`
     : key === null ? `New ${state.currentType.name}` : `Edit ${state.currentType.name}`;
@@ -252,6 +255,7 @@ function hideForm() {
   document.getElementById('form-panel').hidden = true;
   state.editingKey = null;
   state.inboxEntry = null;
+  state.inboxSaved = false;
 }
 
 function collectFormData() {
@@ -305,26 +309,34 @@ document.getElementById('record-form').addEventListener('submit', async (e) => {
       showFormMessage('Saved.');
       return;
     }
-    if (state.editingKey === null) {
-      await fetchJSON(`/api/data/${name}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetchJSON(`/api/data/${name}/${encodeURIComponent(state.editingKey)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+    if (!state.inboxSaved) {
+      if (state.editingKey === null) {
+        await fetchJSON(`/api/data/${name}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      } else {
+        await fetchJSON(`/api/data/${name}/${encodeURIComponent(state.editingKey)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      }
+      if (state.inboxEntry) state.inboxSaved = true;
     }
     if (state.inboxEntry) {
       const entry = state.inboxEntry;
-      await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accept' }),
-      });
+      try {
+        await fetchJSON(`/api/inbox/${encodeURIComponent(entry.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'accept' }),
+        });
+      } catch (err) {
+        showFormError(`The record was saved, but it could not be removed from the inbox (${err.message}). Press Save again to retry removing it — the record will not be saved twice.`);
+        return;
+      }
       loadInbox();
     }
     await selectType(name);
@@ -416,8 +428,11 @@ async function loadInbox() {
 async function reviewSubmission(entry) {
   inboxPanel.hidden = true;
   await selectType(entry.type);
-  state.inboxEntry = entry;
-  openForm(entry.key, entry.prefill);
+  if (!state.currentType || state.currentType.name !== entry.type || isSingleton()) {
+    alert(`Cannot review this submission: "${entry.type}" is not a collection that accepts submissions.`);
+    return;
+  }
+  openForm(entry.key, entry.prefill, entry);
 }
 
 async function rejectSubmission(entry) {
