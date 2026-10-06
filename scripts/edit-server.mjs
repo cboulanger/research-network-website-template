@@ -26,6 +26,9 @@ const STATIC_FILES = {
   '/inbox-view.js': { file: 'inbox-view.js', type: 'text/javascript' },
 };
 
+const DEFAULT_INBOX_POLL_MS = 60_000;
+const MIN_INBOX_POLL_MS = 10_000;
+
 // Browser modules shared between the public site and the editor.
 const SHARED_JS = /^\/assets\/js\/(record-form)\.js$/;
 
@@ -70,7 +73,10 @@ export function createServer({
   ntfyConfig = null,
   inboxStatePath = path.resolve('.local', 'inbox.json'),
   ntfyFetch,
+  inboxPollIntervalMs = DEFAULT_INBOX_POLL_MS,
 }) {
+  // The editor polls the inbox at this interval; never faster than ntfy is happy to be asked.
+  const pollIntervalMs = Math.max(MIN_INBOX_POLL_MS, Number(inboxPollIntervalMs) || DEFAULT_INBOX_POLL_MS);
   const ajv = new Ajv({ allErrors: true, strict: true });
   // Presentation hints for the editor UI (widget, rows, readOnly, sort, label); not used for validation.
   ajv.addKeyword('x-editor');
@@ -237,7 +243,7 @@ export function createServer({
         } catch (err) {
           warning = `Could not read the inbox: ${err.message}`;
         }
-        return sendJSON(res, 200, { enabled: true, entries, dropped, warning });
+        return sendJSON(res, 200, { enabled: true, entries, dropped, warning, pollIntervalMs });
       }
       if (parts.length === 3 && req.method === 'POST') {
         const body = await readJSONBody(req);
@@ -400,6 +406,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     schemaDir: path.join(__dirname, '..', 'schema'),
     editorDir: path.join(__dirname, 'editor'),
     ntfyConfig,
+    inboxPollIntervalMs: Number(process.env.INBOX_POLL_INTERVAL_MS) || undefined,
   });
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {

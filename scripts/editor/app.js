@@ -403,29 +403,52 @@ fetchJSON('/api/site')
 
 const inboxPanel = document.getElementById('inbox-panel');
 let inboxEntries = [];
+let inboxTimer = null;
+let inboxBusy = false;
+const baseTitle = document.title;
 
-async function loadInbox() {
+// Fetches the inbox (the server polls ntfy first). `quiet` is the background
+// poll: it skips the "Checking…" flash and never overlaps another request.
+async function loadInbox({ quiet = false } = {}) {
+  if (quiet && inboxBusy) return false;
+  inboxBusy = true;
   const status = document.getElementById('inbox-status');
-  status.textContent = 'Checking for submissions…';
+  if (!quiet) status.textContent = 'Checking for submissions…';
   try {
     const body = await fetchJSON('/api/inbox');
     if (!body.enabled) return false;
+    const known = new Set(inboxEntries.map((e) => e.id));
+    const fresh = body.entries.filter((e) => !known.has(e.id)).length;
     inboxEntries = body.entries;
     document.getElementById('inbox-tool').hidden = false;
     document.getElementById('inbox-button').textContent = `Inbox (${inboxEntries.length})`;
+    document.title = inboxEntries.length ? `(${inboxEntries.length}) ${baseTitle}` : baseTitle;
     const notes = [];
+    if (quiet && fresh) notes.push(`${fresh} new submission(s).`);
     if (body.dropped) notes.push(`${body.dropped} invalid message(s) ignored.`);
     if (body.warning) notes.push(body.warning);
     status.textContent = notes.join(' ');
     status.classList.toggle('error', Boolean(body.warning));
     renderInboxEntries(document.getElementById('inbox-list'), inboxEntries, { onReview: reviewSubmission, onReject: rejectSubmission });
+    if (!inboxTimer && body.pollIntervalMs) {
+      inboxTimer = setInterval(() => {
+        if (!document.hidden) loadInbox({ quiet: true });
+      }, body.pollIntervalMs);
+    }
     return true;
   } catch (err) {
     status.textContent = err.message;
     status.classList.add('error');
     return false;
+  } finally {
+    inboxBusy = false;
   }
 }
+
+// Catch up right away when the tab comes back to the foreground.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && inboxTimer) loadInbox({ quiet: true });
+});
 
 async function reviewSubmission(staleEntry) {
   inboxPanel.hidden = true;
@@ -456,7 +479,7 @@ async function rejectSubmission(entry) {
 
 document.getElementById('inbox-button').addEventListener('click', () => { inboxPanel.hidden = false; });
 document.getElementById('inbox-close').addEventListener('click', () => { inboxPanel.hidden = true; });
-document.getElementById('inbox-refresh').addEventListener('click', loadInbox);
+document.getElementById('inbox-refresh').addEventListener('click', () => loadInbox());
 loadInbox();
 
 loadTypes().then(() => {

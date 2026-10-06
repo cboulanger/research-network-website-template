@@ -286,7 +286,12 @@ accepts the submission in the editor.
   saved but removing the entry failed, pressing Save again only retries the
   removal. Pending entries are kept in `.local/inbox.json` (written
   atomically; a corrupt file is moved aside to
-  `inbox.json.corrupt-<timestamp>` and the inbox starts empty).
+  `inbox.json.corrupt-<timestamp>` and the inbox starts empty). While the
+  editor is open in a foreground tab it checks ntfy for new messages every
+  60 seconds (set `INBOX_POLL_INTERVAL_MS` to change this; the minimum is
+  10000): the button count and the tab title update and the sidebar notes
+  how many submissions arrived. Messages posted while the editor was closed
+  are collected the next time it opens, as long as ntfy still retains them.
 - **Limits and trust.** ntfy.sh keeps messages about 12 h and allows 4 KB per
   message. The form enforces a fixed 4096-byte limit regardless of server, so
   self-hosting (set `NTFY_SERVER`) is for longer retention and access control,

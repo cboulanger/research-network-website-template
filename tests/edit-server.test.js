@@ -461,3 +461,21 @@ test('the inbox view module is served to the editor', async () => {
     await ctx.close();
   }
 });
+
+test('the inbox response tells the editor how often to poll (default 60s, never below 10s)', async () => {
+  const emptyPoll = async () => ({ ok: true, status: 200, text: async () => '' });
+  const interval = async (options) => {
+    const inboxStatePath = path.join(await mkdtemp(path.join(tmpdir(), 'inbox-')), 'inbox.json');
+    const ctx = await startTestServer({}, {
+      ntfyConfig: { server: 'https://ntfy.test', topic: 't' }, inboxStatePath, ntfyFetch: emptyPoll, ...options,
+    });
+    try {
+      return (await (await fetch(`${ctx.base}/api/inbox`)).json()).pollIntervalMs;
+    } finally {
+      await ctx.close();
+    }
+  };
+  assert.equal(await interval({}), 60000);
+  assert.equal(await interval({ inboxPollIntervalMs: 30000 }), 30000);
+  assert.equal(await interval({ inboxPollIntervalMs: 1000 }), 10000);
+});
