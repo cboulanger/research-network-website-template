@@ -46,3 +46,20 @@ test('skipReadOnly leaves readOnly fields out of both render and collect', () =>
   assert.equal(form.querySelector('#field-id'), null);
   assert.equal('id' in collectRecordData(form, { itemSchema, typeName: 'projects', skipReadOnly: true }), false);
 });
+
+test('a property title is used as the label; without one the key is used', () => {
+  const form = makeForm();
+  const schema = {
+    type: 'object',
+    required: ['lastname'],
+    properties: {
+      lastname: { type: 'string', title: 'Last name' },
+      nickname: { type: 'string' },
+      participants: { type: 'array', items: { type: 'string' }, title: 'Participants' },
+    },
+  };
+  renderRecordFields(form, { itemSchema: schema, record: {}, typeName: 'projects', members: [] });
+  assert.equal(form.querySelector('label[for="field-lastname"]').textContent, 'Last name *');
+  assert.equal(form.querySelector('label[for="field-nickname"]').textContent, 'nickname');
+  assert.equal(form.querySelector('[data-field="participants"] label').textContent, 'Participants');
+});

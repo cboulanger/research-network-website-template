@@ -6,17 +6,20 @@
   "required": ["zoteroGroup", "style"],
   "properties": {
     "zoteroGroup": {
+      "title": "Zotero group",
       "description": "Public Zotero group: numeric id or https://www.zotero.org/groups/<id> URL",
       "type": "string",
       "pattern": "^(https?://(www\\.)?zotero\\.org/groups/)?\\d+([/?#].*)?$"
     },
     "style": {
+      "title": "Citation style",
       "description": "CSL style id from https://www.zotero.org/styles, e.g. apa, chicago-author-date, or a style URL",
       "type": "string",
       "minLength": 1
     },
-    "locale": { "description": "Citation locale, e.g. en-US or de-DE", "type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$" },
+    "locale": { "title": "Citation locale", "description": "Citation locale, e.g. en-US or de-DE", "type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$" },
     "creatorTypes": {
+      "title": "Creator roles",
       "description": "Zotero creator roles that count as a member's publication (default: author, editor)",
       "type": "array",
       "minItems": 1,

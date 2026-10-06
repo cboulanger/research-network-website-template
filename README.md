@@ -243,6 +243,9 @@ The editor takes its presentation hints from an `x-editor` keyword in
 `schema/*.schema.json` (ignored by validation; registered with Ajv in
 `edit-server.mjs` and `scripts/lib/ajv-editor-keyword.cjs`):
 
+- Every property has a short JSON Schema `"title"` (e.g. `"Last name"`); it is the
+  label of its form field, in the editor and on the public edit form (the key is
+  the fallback). A `"description"` is shown below the label as help text.
 - On a property: `"widget": "date"` (date picker, empty value defaults to
   today, stored as `YYYY-MM-DD`), `"widget": "textarea"` with `"rows": N`,
   `"readOnly": true` (ids; assigned by the server on create), `"placeholder"`.

@@ -45,13 +45,13 @@ export function buildStringListField(key, values) {
   return container;
 }
 
-export function buildParticipantPicker(participantIds, members) {
+export function buildParticipantPicker(participantIds, members, title = 'participants') {
   const container = document.createElement('div');
   container.className = 'field participant-picker';
   container.dataset.field = 'participants';
 
   const label = document.createElement('label');
-  label.textContent = 'participants';
+  label.textContent = title;
   container.appendChild(label);
 
   const list = document.createElement('ul');
@@ -125,7 +125,7 @@ export function buildField(key, propSchema, value, required) {
   const hints = editorHints(propSchema);
   const readOnly = Boolean(hints.readOnly);
   const label = document.createElement('label');
-  label.textContent = key + (required && !readOnly ? ' *' : '');
+  label.textContent = (propSchema.title || key) + (required && !readOnly ? ' *' : '');
   label.setAttribute('for', `field-${key}`);
   wrapper.appendChild(label);
   if (propSchema.description) {
@@ -178,7 +178,7 @@ export function renderRecordFields(form, { itemSchema, record, typeName, members
   Object.entries(itemSchema.properties).forEach(([key, propSchema]) => {
     if (skipReadOnly && editorHints(propSchema).readOnly) return;
     if (typeName === 'projects' && key === 'participants') {
-      form.appendChild(buildParticipantPicker(record.participants || [], members));
+      form.appendChild(buildParticipantPicker(record.participants || [], members, propSchema.title));
       return;
     }
     form.appendChild(buildField(key, propSchema, record[key], required.has(key)));
