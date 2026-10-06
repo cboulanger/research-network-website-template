@@ -363,3 +363,16 @@ test('GET /api/site returns the resolved site URL', async () => {
     await ctx.close();
   }
 });
+
+test('the shared form module is served to the editor', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/assets/js/record-form.js`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /javascript/);
+    assert.match(await res.text(), /export function renderRecordFields/);
+    assert.equal((await fetch(`${ctx.base}/assets/js/../../package.json`)).status, 404);
+  } finally {
+    await ctx.close();
+  }
+});

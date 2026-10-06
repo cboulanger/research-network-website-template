@@ -23,6 +23,9 @@ const STATIC_FILES = {
   '/style.css': { file: 'style.css', type: 'text/css' },
 };
 
+// Browser modules shared between the public site and the editor.
+const SHARED_JS = /^\/assets\/js\/(record-form)\.js$/;
+
 const PREVIEW_MIME = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -279,6 +282,12 @@ export function createServer({
   }
 
   function serveStatic(res, pathname) {
+    const shared = SHARED_JS.exec(pathname);
+    if (shared) {
+      const body = readFileSync(path.join(editorDir, '..', '..', 'assets', 'js', `${shared[1]}.js`));
+      res.writeHead(200, { 'Content-Type': 'text/javascript' });
+      return res.end(body);
+    }
     const entry = STATIC_FILES[pathname];
     if (!entry) return sendError(res, 404, 'Not found');
     const body = readFileSync(path.join(editorDir, entry.file));
