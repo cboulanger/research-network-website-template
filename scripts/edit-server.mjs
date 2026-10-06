@@ -9,6 +9,8 @@ import { readContentFile, writeContentFile } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
+import { createInbox } from './lib/inbox.mjs';
+import { getPublicEditConfig } from './lib/public-edit.mjs';
 import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
 import { computeMemberId, slugify } from '../assets/js/shared.js';
 
@@ -64,6 +66,9 @@ export function createServer({
   waitFn = waitForDeployStatus,
   buildFn = () => runBuild({ buildScript: path.join(editorDir, '..', 'build.mjs') }),
   publicDir = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public'),
+  ntfyConfig = null,
+  inboxStatePath = path.resolve('.local', 'inbox.json'),
+  ntfyFetch,
 }) {
   const ajv = new Ajv({ allErrors: true, strict: true });
   // Presentation hints for the editor UI (widget, rows, readOnly, sort, label); not used for validation.
@@ -71,6 +76,9 @@ export function createServer({
   const types = getEditableTypes(schemaDir);
   const typeByName = new Map(types.map((t) => [t.name, t]));
   const validators = new Map(types.map((t) => [t.name, ajv.compile(t.schema)]));
+  const inbox = ntfyConfig
+    ? createInbox({ statePath: inboxStatePath, config: ntfyConfig, types, loadRecords, fetchFn: ntfyFetch })
+    : null;
 
   function sendJSON(res, statusCode, body) {
     const text = body === null ? '' : JSON.stringify(body);
@@ -209,6 +217,31 @@ export function createServer({
       }
     }
 
+    if (parts[1] === 'inbox') {
+      if (!inbox) {
+        if (parts.length === 2 && req.method === 'GET') return sendJSON(res, 200, { enabled: false });
+        return sendError(res, 404, 'Inbox is not enabled');
+      }
+      if (parts.length === 2 && req.method === 'GET') {
+        let dropped = 0;
+        let warning = null;
+        try {
+          ({ dropped } = await inbox.refresh());
+        } catch (err) {
+          warning = `Could not fetch new submissions: ${err.message}`;
+        }
+        return sendJSON(res, 200, { enabled: true, entries: await inbox.list(), dropped, warning });
+      }
+      if (parts.length === 3 && req.method === 'POST') {
+        const body = await readJSONBody(req);
+        if (body.action !== 'accept' && body.action !== 'reject') {
+          return sendError(res, 400, 'action must be "accept" or "reject"');
+        }
+        const found = await inbox.resolve(decodeURIComponent(parts[2]));
+        return found ? sendJSON(res, 204, null) : sendError(res, 404, 'No such submission');
+      }
+    }
+
     if (parts[1] === 'data' && parts.length >= 3) {
       const name = parts[2];
       const type = typeByName.get(name);
@@ -344,6 +377,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     contentPath: process.env.CONTENT_PATH || './content',
     schemaDir: path.join(__dirname, '..', 'schema'),
     editorDir: path.join(__dirname, 'editor'),
+    ntfyConfig: getPublicEditConfig(),
   });
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {
