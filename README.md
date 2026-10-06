@@ -250,6 +250,51 @@ The editor takes its presentation hints from an `x-editor` keyword in
   "order": "asc" | "desc" }` and `"columns": ["date", "title"]` (property names shown
   as aligned columns in the record list). Sorting is display-only; the JSON files keep their order.
 
+## Public edits via ntfy (optional)
+
+With `NTFY_TOPIC` set, visitors can propose changes without any backend. Open
+any list page (members, projects, events, news) with `?edit` appended to the
+URL (edit mode is remembered for the browser session): each row gets an
+**Edit** button and the list an **Add** button. The form (`edit.html`, with
+the public data under `assets/data/*.json`) posts a JSON message to
+`{NTFY_SERVER}/{NTFY_TOPIC}`. An add carries no id; an update carries the
+record id (events and news have no id and are addressed by array index, with
+the original record sent as `base`). Nothing is published until a reviewer
+accepts the submission in the editor.
+
+- **Setup.** Set `NTFY_TOPIC` (and optionally `NTFY_SERVER`, default
+  `https://ntfy.sh`) in `.env` for local builds, and as **variables** (not
+  secrets, the topic is visible in the site source) for CI: repository
+  Variables on GitHub (`ci.yml` already reads them), project CI/CD variables
+  on GitLab (leave "Mask variable" off; `.gitlab-ci.yml` needs no change).
+  Pick a long random topic name.
+- **Private fields.** `"x-editor": { "private": true }` on a schema property
+  keeps it out of the published data, the public form and the messages.
+  `email` is private, so reviewers fill it in for new members. (As a
+  consequence the member avatar colour is now derived from the member id,
+  not the email.)
+- **Reviewing.** When a topic is configured, the editor shows an **Inbox (n)**
+  button. Entries show a field-by-field diff against the current record
+  (updates whose record no longer matches are marked stale and open as an
+  add). **Review & accept** opens the normal form prefilled; saving goes
+  through the usual save path and then removes the entry. **Reject**
+  discards it. Opening another record or the New form while reviewing
+  abandons that review (the entry stays in the inbox); if the record was
+  saved but removing the entry failed, pressing Save again only retries the
+  removal. Pending entries are kept in `.local/inbox.json` (written
+  atomically; a corrupt file is moved aside to
+  `inbox.json.corrupt-<timestamp>` and the inbox starts empty).
+- **Limits and trust.** ntfy.sh keeps messages about 12 h and allows 4 KB per
+  message (the form checks this before sending); self-host and set
+  `NTFY_SERVER` for more. Anyone who knows the topic can read and post to it,
+  so every message is validated against the schema and reviewed by hand;
+  submissions that fail validation are silently dropped (the inbox reports
+  how many). Pending entries are not capped, so anyone can flood the topic:
+  review or reject promptly, or use a self-hosted ntfy with access control.
+  Note that the data behind the edit forms is published at
+  `assets/data/*.json` (private fields stripped).
+- **Disabling.** Leave `NTFY_TOPIC` blank; none of this is built.
+
 ## Content shape
 
 Real content lives outside the repo (see "Storing content outside the repo"

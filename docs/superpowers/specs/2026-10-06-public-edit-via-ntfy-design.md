@@ -31,7 +31,10 @@ and no edit code ships.
   properties from a schema (including from `required`) and from records.
 - The build no longer uses `email` for the avatar colour
   (`hashColor(member.email)` in `assets/js/members.js`); it uses `id`.
-- Submissions are validated against the stripped schema. On review, the
+- `toSubmissionSchema` (private fields stripped, readOnly fields not required)
+  is the schema used both for the published `assets/schema/*.json` and for
+  validating incoming messages.
+- Submissions are validated against that schema. On review, the
   reviewer completes private required fields before saving (full schema).
 
 ## 2. Build
@@ -66,6 +69,9 @@ Without `NTFY_TOPIC`, none of these files exist and pages do not reference them.
   ```
 
   `op` is `add` or `update`. For `update`, `data` is the full public record.
+  The envelope has an optional `base` (the original public record), sent for
+  `update` of collections without an `id` field (events, news); their `id` is
+  the array index.
 - Payloads exceeding the size limit (4096 bytes unless a self-hosted server is
   used; the limit is a constant, checked before sending) are rejected in the
   form with a clear message. Network/HTTP errors are shown; success shows a
@@ -77,8 +83,13 @@ Without `NTFY_TOPIC`, none of these files exist and pages do not reference them.
   `{server}/{topic}/json?poll=1&since=<last-id>`, parses messages, and drops
   anything that is not a valid v1 envelope or fails schema validation (stripped
   schema), reporting counts of dropped messages.
-- Handled/seen state is stored in a gitignored local file (`.local/inbox.json`:
-  last-seen id, handled message ids).
+- Inbox state is `{ lastId, pending, resolved }` in the gitignored
+  `.local/inbox.json`. Pending submissions are stored locally so they outlive
+  ntfy's retention; `resolved` ids prevent re-adding.
+- Extra validation: `add` must not carry the key field; a keyed `update` must
+  carry `data[keyField] === envelope.id`; keyless `update` requires `base`.
+  The inbox locates a keyless record by matching `base` against the current
+  records and marks the entry **stale** (opens as an add) when none matches.
 - UI: an "Inbox" panel with a badge count. Each entry shows a field-by-field
   diff against the current record (updates) or a preview (adds). If the stored
   record differs from what the message was based on, the diff makes that

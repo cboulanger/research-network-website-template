@@ -126,6 +126,12 @@ WebDAV share, confirmed by reading the record back immediately afterward.
   `vars.CONTENT_PATH` empty and the build silently falls back to the
   generic `content/` demo data instead of failing loudly.
 
+- **`NTFY_TOPIC`/`NTFY_SERVER` are CI Variables** like `CONTENT_PATH` (on
+  GitLab: non-masked project CI/CD variables; the topic is public in the site
+  source). If unset the public-edit feature is simply not built, so a missing
+  variable is silent — check `public/edit.html` exists when testing the
+  feature.
+
 - **A repo that's a real deployment (not just the template) may only have
   one forge configured.** E.g. a site that deploys via GitLab CI may have a
   `.env` with `CONTENT_USERNAME`/`CONTENT_PASSWORD`/`GITLAB_*` but no
