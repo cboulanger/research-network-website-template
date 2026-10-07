@@ -7,18 +7,32 @@ news, and publications pages, ready to fill in with your own content.
 **Demo:** <https://cboulanger.github.io/research-network-website-template>
 (built from this repo's generic placeholder content).
 
-## Quick start
+This document has two parts:
 
-This guide takes you from the template to your own live website. You don't
-need to be a programmer, but you should be comfortable installing software
-and typing a few commands into a terminal. Allow about an hour.
+- **[Part 1: Setting up and running your site](#part-1-setting-up-and-running-your-site)**
+  for the people who run a site. You set things up once, then do everything
+  else in the editor, a desktop app.
+- **[Part 2: Reference for developers](#part-2-reference-for-developers)**
+  covers how it all works underneath: build, editor internals, content
+  format, CI and releases.
+
+# Part 1: Setting up and running your site
+
+You don't need to be a programmer, but you should be comfortable installing
+software and typing a few commands into a terminal during the one-time
+setup. Allow about an hour. We don't ship a ready-made installer: you
+download the source code and build your own copy of the editor app from it
+(step 7), which takes a few minutes.
 
 **How it works:** your content (members, projects, events, news) lives as
 ordinary files on a file share of your own, not in this repository. A build
 step turns those files into a plain static website, which GitHub publishes
-for free (GitHub Pages). To change the site you edit the content with a
-local editor, then trigger a rebuild. The `content/` folder in this repo
-holds generic sample data only — real content is never edited in the repo.
+for free (GitHub Pages). You change the content in **the editor**, a small
+desktop app on your computer, and click **Deploy site** to publish. The
+`content/` folder in this repo holds generic sample data only — real content
+is never edited in the repo.
+
+## One-time setup
 
 ### 1. Create your copy and switch on GitHub Pages
 
@@ -62,14 +76,14 @@ folder into your WebDAV folder, so that it contains:
     pages/    longer write-ups (e.g. about.md)
     images/   portraits, logo, favicon
 
-You'll replace the sample entries with real ones in step 8.
+You'll replace the sample entries with real ones in the editor.
 
 ### 4. Install Node.js
 
-Node.js (which includes `npm`) runs the build and editor tools on your
-computer. Download the "LTS" version (22 or newer) from <https://nodejs.org>
-and install it with the default options. Check it worked by opening a
-terminal (Windows: PowerShell; macOS: Terminal) and typing `node --version`.
+Node.js (which includes `npm`) is needed once, to build the editor app. Download
+the "LTS" version (22 or newer) from <https://nodejs.org> and install it with
+the default options. Check it worked by opening a terminal (Windows:
+PowerShell; macOS: Terminal) and typing `node --version`.
 
 ### 5. Unpack the project and configure it
 
@@ -84,8 +98,8 @@ terminal (Windows: PowerShell; macOS: Terminal) and typing `node --version`.
        CONTENT_PASSWORD=<your app password>
 
    `.env` contains passwords: never share it or commit it to git.
-4. So that you can trigger a rebuild of the site from your computer
-   (step 10), create a GitHub personal access token (GitHub → Settings →
+4. So that the editor can trigger a rebuild of the site (**Deploy site**),
+   create a GitHub personal access token (GitHub → Settings →
    Developer settings → Personal access tokens; scope "repo", or
    "Actions: write" for a fine-grained token) and add it to `.env`, together
    with the name of your GitHub repository:
@@ -104,41 +118,84 @@ repository open **Settings → Secrets and variables → Actions** and add:
 | `CONTENT_USERNAME` | *Secrets* tab   | your username   |
 | `CONTENT_PASSWORD` | *Secrets* tab   | your app password |
 
-### 7. Install and start the editor
+### 7. Build the editor app
 
 In a terminal, change into the unpacked folder and run:
 
     npm install
-    npm run edit
+    npm run package-app
 
-`npm install` downloads the required tools (needed once). `npm run edit`
-starts the local editor; open <http://127.0.0.1:4848> in your browser.
+`npm install` downloads the required tools; `npm run package-app` builds the
+editor as a desktop app for the system you are on (Windows, macOS or Linux)
+and puts a launcher on your Desktop. This takes a few minutes and needs an
+internet connection. From now on you start the editor by double-clicking
+**<your site's short name> Editor** on your Desktop (the name comes from
+the "Short site name" in your site settings, e.g. "CLFN Editor"). No terminal
+and no Node.js are needed for that.
 
-### 8. Edit your content
+**Keep the app to yourself.** The app contains a copy of your `.env`, with
+its passwords, in plain text. It is meant for your own computer: don't share
+it, copy it to other people, or publish it. If you change `.env` later,
+or want a newer version of the editor, run `npm run package-app` again; it
+replaces the previous app. (Close the editor first.) The app shows in its
+taskbar icon or dock icon how many suggestions from visitors are waiting for
+you (see "Suggestions from visitors" below).
+
+If you'd rather not build the app, `npm run edit` starts the same editor in
+a terminal, and you open <http://127.0.0.1:4848> in your browser. Press
+Ctrl+C in the terminal to stop it.
+
+## Working with the editor
+
+Start the editor by double-clicking its launcher.
+
+### Edit your content
 
 Use the editor to replace the sample members, projects, events and news with
-your own. Each change is saved straight to your WebDAV share. Press Ctrl+C in
-the terminal to stop the editor.
+your own. Pick a list (members, projects, events, news) in the sidebar, then
+press **New**, or click an entry to edit or delete it in the form. Each change is saved straight to your WebDAV share; there is no
+separate save-everything step.
 
-### 9. Preview your site (optional)
+### Preview your site (optional)
 
-    npm run build
+Click **Build & preview locally** to build the site from your current
+content. When it's done the result opens in a new tab, and any content errors
+are reported. You can skip this step if you just want to publish.
 
-This builds the site into the `public/` folder from your current content and
-reports any errors. Then open `public/index.html` in your browser to look at
-it. (Opening the file directly shows most of the site; the projects graph
-needs a local web server, see "Local preview" below.) You can skip this step
-if you just want to publish.
+### Publish
 
-### 10. Publish
+Click **Deploy site**. The editor first checks your content and lists any
+errors it finds. If everything is fine it asks GitHub to rebuild the public
+site, waits, and reports whether the build succeeded. GitHub fetches your
+content from the WebDAV share itself, so nothing needs to be uploaded. Below
+the button, **Open the live site** takes you to the live site. Repeat "Edit
+your content" and "Publish" whenever you want to update the site.
 
-    npm run deploy
+### Suggestions from visitors (optional)
 
-This asks GitHub to rebuild the public site, then waits and reports whether
-the build succeeded. GitHub fetches your content from the WebDAV share
-itself, so nothing needs to be uploaded. Instead of the command you can click
-**Deploy site** in the editor, which does the same. Repeat steps 7–10
-whenever you want to update the site.
+Visitors can propose changes to members, projects, events and news without
+an account. They add `?edit` to the address of a list page; each row then
+gets an **Edit** button and the list an **Add** button. Nothing is published
+until you accept it.
+
+To switch this on, add a topic name to `.env` and to GitHub:
+
+1. Choose a long random topic name (anyone who knows it can post to it).
+2. Add `NTFY_TOPIC=<your topic>` to `.env`, and rebuild the app (step 7).
+3. In your GitHub repository open **Settings → Secrets and variables →
+   Actions → Variables** and add a variable `NTFY_TOPIC` with the same value
+   (it is not a secret). Then **Deploy site**.
+
+Suggestions arrive via the free service <https://ntfy.sh>. In the editor an
+**Inbox (n)** button in the sidebar shows how many are waiting, and the desktop app shows the
+same number as a badge on its icon (macOS dock and Windows taskbar), and in its
+window title. Open the inbox to see what a suggestion changes compared to the
+current entry, then **Review & accept** to open it in the normal form
+(you can correct it before saving) or **Reject** to discard it. Which
+suggestions have been dealt with is stored on your content share, so it's
+the same on every computer you use the editor on. ntfy.sh keeps messages for
+only about 12 hours, so look at the inbox regularly. Details and limits are in
+Part 2.
 
 ### Updating the website code
 
@@ -161,13 +218,32 @@ The workflow runs by itself after the sync; you can also click **Deploy
 site** in the editor to rebuild the site right away. From the command line
 you can do the same with `gh repo sync <your-username>/<repository-name>`.
 
-**2. The local copy you use for the editor.** This only affects
-`npm run edit` and the local tools, not the public site. Download the ZIP of
-*your* (freshly synced) fork, unpack it, copy your `.env` file from the old
-folder into the new one, and run `npm install`. The old folder can then be
-deleted.
+**2. The local copy you use for the editor.** This only affects the editor
+app, not the public site. Download the ZIP of *your* (freshly synced) fork,
+unpack it, copy your `.env` file from the old folder into the new one, and
+run `npm install` and `npm run package-app` as in step 7. The old folder can
+then be deleted.
 
-The rest of this document is reference material.
+# Part 2: Reference for developers
+
+How the pieces work, for people who change the template or want to understand
+what the editor does. Nothing here is needed to run a site: Part 1 covers that.
+
+**Layout.** `scripts/build.mjs` turns the content tree into a static site in
+`public/`; `scripts/edit-server.mjs` is the local editor server (UI in
+`scripts/editor/`, shared form code in `assets/js/record-form.js`);
+`scripts/electron/main.mjs` wraps that server in the desktop app;
+`scripts/package-app.mjs` builds the app; `schema/*.schema.json` define and
+validate the content; `scripts/deploy.mjs` triggers CI. The npm scripts:
+
+| Command | What it does |
+|---|---|
+| `npm run edit` | Start the editor server (and open it in your browser) |
+| `npm run package-app` | Build the desktop app and put a launcher on the Desktop |
+| `npm run build` / `build:watch` | Build the site into `public/` |
+| `npm run validate` | Validate the content against the schemas |
+| `npm run deploy` | Trigger a rebuild on the forge(s) and wait for the result |
+| `npm test` | Unit tests |
 
 ## Local preview
 
@@ -253,6 +329,45 @@ The editor takes its presentation hints from an `x-editor` keyword in
   "order": "asc" | "desc" }` and `"columns": ["date", "title"]` (property names shown
   as aligned columns in the record list). Sorting is display-only; the JSON files keep their order.
 
+## Desktop app
+
+`npm run package-app` (`scripts/package-app.mjs`) packages the editor with
+[@electron/packager](https://github.com/electron/packager) for the OS and
+CPU architecture it runs on; there is no cross-building. The Electron version
+is pinned in the script, and the Electron binary is downloaded on the first
+run. It is exercised on Windows only so far; the macOS and Linux launcher
+code is untested.
+
+- **What is packaged.** A staging copy of `scripts/`, `schema/`, `assets/`,
+  `content/` and the production dependencies, plus your `.env` as
+  `resources/app/.env` (plain text; edit it there to change settings without
+  rebuilding). `scripts/electron/main.mjs` loads that `.env`, runs the same
+  server as `npm run edit` (`createServerFromEnv`) and shows it in a window.
+  The editor's build runs as a child process of the app's own executable
+  (`ELECTRON_RUN_AS_NODE=1`), so no separate Node is needed. Only one instance
+  runs at a time (the port is fixed, see `EDIT_PORT`); closing the window
+  quits the app.
+- **Installation.** Windows: the app folder goes to
+  `%LOCALAPPDATA%Programs<name>` and the Desktop gets a shortcut;
+  macOS: `<name>.app` on the Desktop; Linux: the folder goes to
+  `~/.local/share` and the Desktop gets a `.desktop` launcher. A previous
+  copy is replaced; if the app is running the script stops and asks you to
+  close it. Set `DESKTOP_DIR` to use another location than the Desktop.
+  `<name>` is `<bannerLabel> Editor`, with `bannerLabel` read from `data/site.json`
+  in `CONTENT_PATH` when the app is packaged (`Site Editor` if that fails). The
+  app takes it from `productName` in its `package.json`. If you change the
+  banner label, repackage; the launcher of the old name is not removed.
+- **Local use only.** Because it embeds `.env`, the app must never be
+  published or shared. The build happens under `.local/app-build/`
+  (gitignored) and is deleted afterwards, and the script refuses to run when
+  `CI` is set.
+- **Inbox badge.** The app polls `/api/inbox` at the inbox poll interval,
+  also while the window is in the background, and shows the number of pending
+  entries: dock badge (macOS) and `setBadgeCount` (Linux with a Unity-style
+  launcher) via Electron, a taskbar overlay icon drawn on a canvas (Windows),
+  and the window title (`<name> (3)`) on every platform. Without
+  `NTFY_TOPIC` there is no badge.
+
 ## Public edits via ntfy (optional)
 
 With `NTFY_TOPIC` set, visitors can propose changes without any backend. Open
@@ -284,9 +399,14 @@ accepts the submission in the editor.
   discards it. Opening another record or the New form while reviewing
   abandons that review (the entry stays in the inbox); if the record was
   saved but removing the entry failed, pressing Save again only retries the
-  removal. Pending entries are kept in `.local/inbox.json` (written
-  atomically; a corrupt file is moved aside to
-  `inbox.json.corrupt-<timestamp>` and the inbox starts empty). While the
+  removal. Pending entries are kept in `inbox-state.json` at the root
+  of the content folder (the `CONTENT_PATH` share), so every editor instance —
+  `npm run edit`, the desktop app, another computer — agrees on which
+  submissions were already handled. (Earlier versions kept it in
+  `.local/inbox.json`; that file is picked up once if the share has none yet.
+  A corrupt state file is saved as `inbox-state.json.corrupt-<timestamp>` and
+  the inbox starts empty; two instances saving at the very same moment can
+  overwrite each other's last change.) While the
   editor is open in a foreground tab it checks ntfy for new messages every
   60 seconds (set `INBOX_POLL_INTERVAL_MS` to change this; the minimum is
   10000): the button count and the tab title update and the sidebar notes
@@ -391,7 +511,7 @@ fails before writing any output, so the previous build (and the currently
 deployed site) is left in place rather than publishing a broken or empty
 site.
 
-See the Quick start (steps 2, 3, 5 and 6) for setting up a WebDAV store with
+See Part 1 (setup steps 2, 3, 5 and 6) for setting up a WebDAV store with
 Nextcloud and wiring it into `.env` and the GitHub repository.
 
 ## Hosting on GitLab
