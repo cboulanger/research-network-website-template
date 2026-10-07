@@ -30,7 +30,7 @@ export async function readContentFile(contentPath, relPath) {
   if (isRemoteContentPath(contentPath)) {
     const url = remoteUrl(contentPath, relPath);
     const res = await fetchWithTimeout(url, { headers: authHeaders() }, timeoutOpts());
-    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    if (!res.ok) throw Object.assign(new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`), { status: res.status });
     return res.text();
   }
   return readFile(path.join(contentPath, relPath), 'utf8');

@@ -1,12 +1,12 @@
-# Agent notes: running the Quick start non-interactively
+# Agent notes: running the README setup non-interactively
 
 This file is for coding agents (not end users) that need to carry out or
-verify the README's "Quick start" on someone's behalf — e.g. setting up a
+verify the README's Part 1 ("Setting up and running your site") on someone's behalf — e.g. setting up a
 new site, or re-testing that the guide still works after a change.  An agent
 should do the equivalent through `gh`/the API instead of trying to drive a
 browser. The mapping below is the part that isn't obvious from the guide.
 
-## Step-by-step: GitHub side (README section 1)
+## Step-by-step: GitHub side (README setup step 1)
 
 ```sh
 # Fork. Note: GitHub refuses to fork a repo into the account that owns it —
@@ -38,7 +38,7 @@ gh run watch <run-id> --repo <you>/<new-repo> --exit-status
 `gh api` note: boolean fields need `-F` (typed), not `-f` (always a string) —
 `-f enabled=true` sends the string `"true"` and GitHub 422s.
 
-## Step-by-step: content + secrets (README sections 2, 3, 6)
+## Step-by-step: content + secrets (README setup steps 2, 3, 5, 6)
 
 Put the content under a **new** subfolder of the WebDAV share, not on top of
 existing content — e.g. `<webdav-root>/<test-name>/{data,pages,images}` —
@@ -57,7 +57,7 @@ gh secret set --env-file /tmp/secrets.env --repo <you>/<new-repo>
 rm /tmp/secrets.env
 ```
 
-## Step-by-step: branding — theme and logo (README section 8)
+## Step-by-step: branding — theme and logo (README "Edit your content")
 
 `site.json` controls the site's visual identity: `theme` (one of 5
 built-in palettes) and `logo` (a filename in the content share's `images/`
@@ -86,7 +86,7 @@ Set both the same way as any other `site.json` field: `PUT /api/data/site`
 on the running editor (`npm run edit`) — not a `gh` step, this is local
 tooling like the section below.
 
-## Step-by-step: local tooling (README sections 4, 5, 7-10)
+## Step-by-step: local tooling (README setup steps 4, 5, 7 and "Working with the editor"; the desktop app is Part 2 "Desktop app")
 
 Nothing unusual here — `npm install`, `npm run validate`, `npm test`,
 `npm run build`, `npm run edit`, `npm run deploy` all worked exactly as

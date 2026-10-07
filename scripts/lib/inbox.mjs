@@ -2,9 +2,8 @@
 // Messages are validated against the public (submission) schema and kept as
 // "pending" in a local state file until the reviewer accepts or rejects them,
 // so they survive ntfy's short message retention.
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import Ajv from 'ajv';
+import { fileStateStore } from './inbox-state-store.mjs';
 import { EDITABLE_TYPES, checkEnvelope, ntfyUrl } from '../../assets/js/ntfy.js';
 import { pickPrivateRecord, stripPrivateRecord, toSubmissionSchema } from '../../assets/js/private-fields.js';
 
@@ -47,7 +46,8 @@ export function diffRecords(from, to) {
     .map((f) => ({ field: f, from: from[f] ?? null, to: to[f] ?? null }));
 }
 
-export function createInbox({ statePath, config, types, loadRecords, fetchFn }) {
+// The state lives in `store` (see inbox-state-store.mjs); `statePath` is shorthand for a local file store.
+export function createInbox({ statePath, store = fileStateStore(statePath), config, types, loadRecords, fetchFn }) {
   const ajv = new Ajv({ allErrors: true, strict: true });
   ajv.addKeyword('x-editor');
   const byName = new Map(
@@ -61,37 +61,29 @@ export function createInbox({ statePath, config, types, loadRecords, fetchFn }) 
 
   // A damaged state file must not take the inbox down, nor be silently
   // destroyed: move it aside and start from an empty state.
-  async function quarantine() {
-    await rename(statePath, `${statePath}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  async function quarantine(text) {
+    await store.quarantine(text);
     return emptyState();
   }
 
   async function readState() {
-    let text;
-    try {
-      text = await readFile(statePath, 'utf8');
-    } catch (err) {
-      if (err.code === 'ENOENT') return emptyState();
-      throw err;
-    }
+    const text = await store.read();
+    if (text === null) return emptyState();
     let parsed;
     try {
       parsed = JSON.parse(text);
     } catch (err) {
-      if (err instanceof SyntaxError) return quarantine();
+      if (err instanceof SyntaxError) return quarantine(text);
       throw err;
     }
     if (!isPlainObject(parsed) || !isPlainObject(parsed.pending ?? {}) || !Array.isArray(parsed.resolved ?? [])) {
-      return quarantine();
+      return quarantine(text);
     }
     return { ...emptyState(), ...parsed };
   }
 
   async function writeState(state) {
-    await mkdir(path.dirname(statePath), { recursive: true });
-    const tmp = `${statePath}.tmp`;
-    await writeFile(tmp, JSON.stringify(state, null, 2) + '\n');
-    await rename(tmp, statePath);
+    await store.write(JSON.stringify(state, null, 2) + '\n');
   }
 
   // Schema-valid is not enough: the id rules keep a submission from addressing
