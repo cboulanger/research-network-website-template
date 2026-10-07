@@ -361,6 +361,17 @@ code is untested.
   published or shared. The build happens under `.local/app-build/`
   (gitignored) and is deleted afterwards, and the script refuses to run when
   `CI` is set.
+- **Several apps (one per group).** Each app is tied to one site: the name,
+  the `.env` and the code snapshot are all fixed at packaging time, and the
+  inbox state sits on that site's own content share. To keep several apart:
+  use one checkout per group (or swap `.env` before each build), and make
+  sure that (1) the `bannerLabel` values differ, because the name decides the
+  install folder and launcher, so equal labels overwrite each other, and (2)
+  each `.env` sets its own `EDIT_PORT`, because the server uses a fixed
+  port (default 4848) and a second app on the same port fails to start with
+  an error dialog. Apps with different names have separate single-instance
+  locks and separate Electron profiles, so nothing else is shared. Apps built
+  from older code keep running until you repackage them.
 - **Inbox badge.** The app polls `/api/inbox` at the inbox poll interval,
   also while the window is in the background, and shows the number of pending
   entries: dock badge (macOS) and `setBadgeCount` (Linux with a Unity-style
