@@ -10,6 +10,7 @@ import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
 import { createInbox } from './lib/inbox.mjs';
+import { contentStateStore, fileStateStore, withLegacyFallback } from './lib/inbox-state-store.mjs';
 import { getPublicEditConfig } from './lib/public-edit.mjs';
 import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
 import { computeMemberId, slugify } from '../assets/js/shared.js';
@@ -48,7 +49,8 @@ const PREVIEW_MIME = {
 // build error (a bad Zotero fetch, invalid content) can't crash the editor.
 function runBuild({ buildScript, cwd = process.cwd() }) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [buildScript], { cwd, env: process.env });
+    // ELECTRON_RUN_AS_NODE makes the packaged desktop app's executable behave as plain Node; Node itself ignores it.
+    const child = spawn(process.execPath, [buildScript], { cwd, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
     let stderr = '';
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
@@ -71,7 +73,9 @@ export function createServer({
   buildFn = () => runBuild({ buildScript: path.join(editorDir, '..', 'build.mjs') }),
   publicDir = path.resolve(process.env.PUBLIC_DIR_OVERRIDE || 'public'),
   ntfyConfig = null,
-  inboxStatePath = path.resolve('.local', 'inbox.json'),
+  // Inbox state lives in the content tree so all editor instances share it; an explicit local file overrides that.
+  inboxStatePath,
+  legacyInboxStatePaths = [path.resolve('.local', 'inbox.json')],
   ntfyFetch,
   inboxPollIntervalMs = DEFAULT_INBOX_POLL_MS,
 }) {
@@ -84,7 +88,7 @@ export function createServer({
   const typeByName = new Map(types.map((t) => [t.name, t]));
   const validators = new Map(types.map((t) => [t.name, ajv.compile(t.schema)]));
   const inbox = ntfyConfig
-    ? createInbox({ statePath: inboxStatePath, config: ntfyConfig, types, loadRecords, fetchFn: ntfyFetch })
+    ? createInbox({ store: inboxStatePath ? fileStateStore(inboxStatePath) : withLegacyFallback(contentStateStore(contentPath), legacyInboxStatePaths), config: ntfyConfig, types, loadRecords, fetchFn: ntfyFetch })
     : null;
 
   function sendJSON(res, statusCode, body) {
@@ -394,20 +398,26 @@ function openBrowser(url) {
   child.unref();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// The editor as configured by the environment (.env): used by `npm run edit` and the packaged desktop app.
+export function createServerFromEnv({ legacyInboxStatePaths } = {}) {
   let ntfyConfig = null;
   try {
     ntfyConfig = getPublicEditConfig();
   } catch (err) {
     console.warn(`Public edit inbox disabled: ${err.message}`);
   }
-  const server = createServer({
+  return createServer({
     contentPath: process.env.CONTENT_PATH || './content',
     schemaDir: path.join(__dirname, '..', 'schema'),
     editorDir: path.join(__dirname, 'editor'),
     ntfyConfig,
+    ...(legacyInboxStatePaths && { legacyInboxStatePaths }),
     inboxPollIntervalMs: Number(process.env.INBOX_POLL_INTERVAL_MS) || undefined,
   });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const server = createServerFromEnv();
   const port = Number(process.env.EDIT_PORT) || 4848;
   server.listen(port, '127.0.0.1', () => {
     const url = `http://127.0.0.1:${port}`;
