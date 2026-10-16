@@ -4,7 +4,7 @@ import { sortNewsByDateDesc, isExternalLink, renderNewsItem, renderNews, renderN
 
 const items = [
   { date: '2024-09-04', title: 'Old news', url: 'https://example.org' },
-  { date: '2026-11-10', title: 'New news', url: 'pages.html?doc=about.md' },
+  { date: '2026-11-10', title: 'New news', url: 'about.md' },
   { date: '2023-01-15', title: 'Oldest news', url: 'https://example.org/a' },
 ];
 
@@ -27,6 +27,7 @@ test('renderNewsItem adds target=_blank only for external links', () => {
   const internal = renderNewsItem(items[1]);
   assert.match(external, /target="_blank" rel="noopener"/);
   assert.doesNotMatch(internal, /target="_blank"/);
+  assert.match(internal, /href="pages\.html\?doc=about\.md"/);
 });
 
 test('renderNewsItem escapes a hostile title', () => {

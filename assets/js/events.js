@@ -1,4 +1,4 @@
-import { escapeHTML, isExternalLink } from './shared.js';
+import { escapeHTML, isExternalLink, resolvePageLink } from './shared.js';
 
 export function sortEventsByDateDesc(events) {
   return [...events].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -12,7 +12,7 @@ export function renderEventItem(event, today) {
   let titleHTML = escapeHTML(event.title);
   if (event.url) {
     const attrs = isExternalLink(event.url) ? ' target="_blank" rel="noopener"' : '';
-    titleHTML = `<a href="${escapeHTML(event.url)}"${attrs}>${escapeHTML(event.title)}</a>`;
+    titleHTML = `<a href="${escapeHTML(resolvePageLink(event.url))}"${attrs}>${escapeHTML(event.title)}</a>`;
   }
   const badge = isUpcoming(event, today) ? '<span class="badge upcoming">Upcoming</span>' : '';
   return `<li class="event-item"><span class="event-date">${escapeHTML(event.date)}</span><span class="event-title">${titleHTML}</span>${badge}</li>`;

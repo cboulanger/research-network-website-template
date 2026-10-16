@@ -1,4 +1,4 @@
-import { escapeHTML, isExternalLink } from './shared.js';
+import { escapeHTML, isExternalLink, resolvePageLink } from './shared.js';
 
 export { isExternalLink };
 
@@ -9,7 +9,7 @@ export function sortNewsByDateDesc(items) {
 export function renderNewsItem(item) {
   const external = isExternalLink(item.url);
   const attrs = external ? ' target="_blank" rel="noopener"' : '';
-  return `<li class="news-item"><span class="news-date">${escapeHTML(item.date)}</span><a href="${escapeHTML(item.url)}"${attrs}>${escapeHTML(item.title)}</a></li>`;
+  return `<li class="news-item"><span class="news-date">${escapeHTML(item.date)}</span><a href="${escapeHTML(resolvePageLink(item.url))}"${attrs}>${escapeHTML(item.title)}</a></li>`;
 }
 
 export function renderNews(items, container) {

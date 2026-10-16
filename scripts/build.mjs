@@ -5,7 +5,7 @@ import path from 'node:path';
 import { marked } from 'marked';
 import { resolveContent } from './lib/resolve-content.mjs';
 import { renderPage } from './lib/page-template.mjs';
-import { rewritePagesUrl } from './lib/rewrite-pages-url.mjs';
+import { rewritePagesLinksInHTML } from './lib/rewrite-pages-url.mjs';
 import { parseZoteroGroupId, fetchZoteroItems } from './lib/zotero.mjs';
 import { selectMemberPublications } from './lib/publications.mjs';
 import { escapeHTML } from '../assets/js/shared.js';
@@ -62,10 +62,6 @@ async function loadPublications(config, members) {
   return publications;
 }
 
-function withRewrittenUrls(items) {
-  return items.map((item) => ({ ...item, url: rewritePagesUrl(item.url) }));
-}
-
 async function buildIndexPage(content) {
   const { site } = content;
   const logoTag = site.logo
@@ -75,9 +71,11 @@ async function buildIndexPage(content) {
   const aboutHTML = marked.parse(aboutMarkdown);
 
   const newsTeaser = {};
-  renderNewsTeaser(withRewrittenUrls(content.news), newsTeaser);
+  renderNewsTeaser(content.news, newsTeaser);
+  newsTeaser.innerHTML = rewritePagesLinksInHTML(newsTeaser.innerHTML);
   const eventsTeaser = {};
-  renderEventsTeaser(withRewrittenUrls(content.events), eventsTeaser);
+  renderEventsTeaser(content.events, eventsTeaser);
+  eventsTeaser.innerHTML = rewritePagesLinksInHTML(eventsTeaser.innerHTML);
   let publicationsBox = '';
   if (content.publications) {
     const publicationsTeaser = {};
@@ -167,7 +165,8 @@ async function buildMembersPage(content) {
 async function buildEventsPage(content) {
   const { site, events } = content;
   const listContainer = {};
-  renderEvents(withRewrittenUrls(events), listContainer);
+  renderEvents(events, listContainer);
+  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
   const mainHTML = `<h1>Events</h1>\n<div id="events-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'events.html'),
@@ -186,7 +185,8 @@ async function buildEventsPage(content) {
 async function buildNewsPage(content) {
   const { site, news } = content;
   const listContainer = {};
-  renderNews(withRewrittenUrls(news), listContainer);
+  renderNews(news, listContainer);
+  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
   const mainHTML = `<h1>News</h1>\n<div id="news-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'news.html'),

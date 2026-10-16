@@ -31,11 +31,12 @@ test('renderEventItem shows an upcoming badge for future dates', () => {
 test('renderEventItem adds target=_blank only for external links', () => {
   const external = renderEventItem(events[1], '2026-09-22');
   const internal = renderEventItem(
-    { date: '2025-07-02', title: 'Online meeting', url: 'pages.html?doc=notes.md' },
+    { date: '2025-07-02', title: 'Online meeting', url: 'notes.md' },
     '2026-09-22'
   );
   assert.match(external, /target="_blank" rel="noopener"/);
   assert.doesNotMatch(internal, /target="_blank"/);
+  assert.match(internal, /href="pages\.html\?doc=notes\.md"/);
 });
 
 test('renderEventsTeaser shows only the 3 most recent items plus a "See all events" link', () => {
