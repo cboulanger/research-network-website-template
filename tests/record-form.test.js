@@ -63,3 +63,63 @@ test('a property title is used as the label; without one the key is used', () =>
   assert.equal(form.querySelector('label[for="field-nickname"]').textContent, 'nickname');
   assert.equal(form.querySelector('[data-field="participants"] label').textContent, 'Participants');
 });
+
+test('a page-link field shows matching pages as the user types, and selecting one fills in the filename', () => {
+  const form = makeForm();
+  const schema = {
+    type: 'object',
+    properties: {
+      url: { type: 'string', title: 'Link', 'x-editor': { widget: 'page-link' } },
+    },
+  };
+  const pages = [
+    { filename: 'about.md', type: 'markdown', title: 'About the Network' },
+    { filename: 'example.html', type: 'html', title: 'Example HTML Content Page' },
+  ];
+  renderRecordFields(form, { itemSchema: schema, record: {}, typeName: 'events', pages });
+
+  const input = form.querySelector('#field-url');
+  input.value = 'about';
+  input.dispatchEvent(new document.defaultView.Event('input'));
+
+  const dropdown = form.querySelector('.page-link-results');
+  assert.equal(dropdown.hidden, false);
+  assert.match(dropdown.textContent, /About the Network/);
+  assert.doesNotMatch(dropdown.textContent, /Example HTML/);
+
+  dropdown.querySelector('div').click();
+  assert.equal(input.value, 'about.md');
+  assert.equal(dropdown.hidden, true);
+});
+
+test('a page-link field never shows a dropdown for a value starting with http', () => {
+  const form = makeForm();
+  const schema = {
+    type: 'object',
+    properties: { url: { type: 'string', title: 'Link', 'x-editor': { widget: 'page-link' } } },
+  };
+  const pages = [{ filename: 'http-page.md', type: 'markdown', title: 'http-page' }];
+  renderRecordFields(form, { itemSchema: schema, record: {}, typeName: 'events', pages });
+
+  const input = form.querySelector('#field-url');
+  input.value = 'http://example.org';
+  input.dispatchEvent(new document.defaultView.Event('input'));
+
+  assert.equal(form.querySelector('.page-link-results').hidden, true);
+});
+
+test('a page-link field with no pages supplied behaves like a plain input (the public edit form\'s case)', () => {
+  const form = makeForm();
+  const schema = {
+    type: 'object',
+    properties: { url: { type: 'string', title: 'Link', 'x-editor': { widget: 'page-link' } } },
+  };
+  renderRecordFields(form, { itemSchema: schema, record: {}, typeName: 'events' });
+
+  const input = form.querySelector('#field-url');
+  input.value = 'anything';
+  input.dispatchEvent(new document.defaultView.Event('input'));
+
+  assert.equal(form.querySelector('.page-link-results').hidden, true);
+  assert.equal(input.value, 'anything');
+});

@@ -1,5 +1,6 @@
 // Form building shared by the editor and the public site. Must not touch `document` at import time.
 
+import { isExternalLink } from './shared.js';
 
 // Presentation hints live in the schema under "x-editor": on the array schema
 // (sort, columns) and on individual properties (widget, rows, readOnly, placeholder).
@@ -119,7 +120,52 @@ export function buildParticipantPicker(participantIds, members, title = 'partici
   return container;
 }
 
-export function buildField(key, propSchema, value, required) {
+// Shows page titles matching what's typed into `input`, while its value
+// doesn't look like an external URL; clicking a match fills in that page's
+// filename. If `pages` is empty (the public edit form never supplies one),
+// nothing ever matches, so this is indistinguishable from a plain input —
+// no separate "no pages available" code path is needed.
+function buildPageLinkDropdown(input, pages) {
+  const dropdown = document.createElement('div');
+  dropdown.className = 'page-link-results';
+  dropdown.hidden = true;
+
+  function hide() {
+    dropdown.hidden = true;
+    dropdown.innerHTML = '';
+  }
+
+  function showMatches(query) {
+    const q = query.trim().toLowerCase();
+    if (!q || isExternalLink(query)) return hide();
+    const matches = pages.filter((p) => {
+      const stem = p.filename.replace(/\.(md|html)$/, '');
+      return p.title.toLowerCase().includes(q) || stem.toLowerCase().includes(q);
+    });
+    if (!matches.length) return hide();
+    dropdown.innerHTML = '';
+    matches.forEach((p) => {
+      const row = document.createElement('div');
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = p.title;
+      const filenameSpan = document.createElement('span');
+      filenameSpan.className = 'page-link-filename';
+      filenameSpan.textContent = p.filename;
+      row.append(titleSpan, filenameSpan);
+      row.addEventListener('click', () => {
+        input.value = p.filename;
+        hide();
+      });
+      dropdown.appendChild(row);
+    });
+    dropdown.hidden = false;
+  }
+
+  input.addEventListener('input', () => showMatches(input.value));
+  return dropdown;
+}
+
+export function buildField(key, propSchema, value, required, pages = []) {
   const wrapper = document.createElement('div');
   wrapper.className = 'field';
   const hints = editorHints(propSchema);
@@ -169,11 +215,19 @@ export function buildField(key, propSchema, value, required) {
   if (required && !readOnly) input.required = true;
   if (readOnly) input.readOnly = true;
   if (hints.placeholder) input.placeholder = hints.placeholder;
-  wrapper.appendChild(input);
+  if (hints.widget === 'page-link') {
+    const positioner = document.createElement('div');
+    positioner.className = 'page-link-field';
+    positioner.appendChild(input);
+    positioner.appendChild(buildPageLinkDropdown(input, pages));
+    wrapper.appendChild(positioner);
+  } else {
+    wrapper.appendChild(input);
+  }
   return wrapper;
 }
 
-export function renderRecordFields(form, { itemSchema, record, typeName, members = [], skipReadOnly = false }) {
+export function renderRecordFields(form, { itemSchema, record, typeName, members = [], pages = [], skipReadOnly = false }) {
   const required = new Set(itemSchema.required || []);
   Object.entries(itemSchema.properties).forEach(([key, propSchema]) => {
     if (skipReadOnly && editorHints(propSchema).readOnly) return;
@@ -181,7 +235,7 @@ export function renderRecordFields(form, { itemSchema, record, typeName, members
       form.appendChild(buildParticipantPicker(record.participants || [], members, propSchema.title));
       return;
     }
-    form.appendChild(buildField(key, propSchema, record[key], required.has(key)));
+    form.appendChild(buildField(key, propSchema, record[key], required.has(key), pages));
   });
 }
 

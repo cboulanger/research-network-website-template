@@ -63,3 +63,9 @@ td { white-space: pre-line; vertical-align: top; }
 .inbox-changes th, .inbox-changes td { text-align: left; padding: 0.4rem; }
 .inbox-actions { margin: 0.75rem 0 0; }
 #page-editor-host { min-height: 480px; margin-top: 1rem; }
+
+.page-link-field { position: relative; }
+.page-link-results { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; }
+.page-link-results div { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0.4rem; cursor: pointer; }
+.page-link-results div:hover { background: #f4f4f4; }
+.page-link-filename { color: #777; font-size: 0.85rem; white-space: nowrap; }
