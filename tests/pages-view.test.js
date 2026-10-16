@@ -200,6 +200,27 @@ test('deleting a page from the list asks for confirmation and removes the row', 
   assert.equal(doc.querySelectorAll('#pages-table tbody tr').length, 0);
 });
 
+test('a failing delete calls alertFn and leaves the row in place', async () => {
+  const alertCalls = [];
+  const fetchFn = async (url, options) => {
+    if (url === '/api/pages' && (!options || !options.method)) {
+      return jsonResponse([{ filename: 'about.md', type: 'markdown', title: 'About' }]);
+    }
+    if (url === '/api/pages/about.md' && options?.method === 'DELETE') {
+      return jsonResponse({ error: 'locked' }, 500);
+    }
+    throw new Error(`unexpected fetch: ${url} ${options?.method}`);
+  };
+  const { doc } = setup({ fetchFn, alertFn: (message) => alertCalls.push(message) });
+  doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
+  await new Promise((r) => setTimeout(r, 0));
+  doc.querySelector('#pages-table tbody button[data-action="delete"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.deepEqual(alertCalls, ['locked']);
+  assert.equal(doc.querySelectorAll('#pages-table tbody tr').length, 1);
+});
+
 test('declining the confirmation does not delete', async () => {
   const fetchFn = async (url, options) => {
     if (url === '/api/pages' && (!options || !options.method)) {

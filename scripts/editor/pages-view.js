@@ -54,15 +54,19 @@ export function initPagesView({
     const errorBox = doc.getElementById('pages-load-error');
     errorBox.hidden = true;
     loading.hidden = false;
+    // Rapid clicks can leave several loads in flight; only the latest may render.
+    const token = (loadList.latest = Symbol());
     let pages;
     try {
       pages = await fetchJSON('/api/pages');
     } catch (err) {
+      if (loadList.latest !== token) return;
       loading.hidden = true;
       errorBox.textContent = `Could not load pages: ${err.message}`;
       errorBox.hidden = false;
       return;
     }
+    if (loadList.latest !== token) return;
     loading.hidden = true;
     renderList(pages);
   }
@@ -126,18 +130,24 @@ export function initPagesView({
     pagesPanel.hidden = true;
     newPanel.hidden = true;
     editorPanel.hidden = false;
+    // Rapid clicks can leave several loads in flight; only the latest may render.
+    const token = (openPage.latest = Symbol());
     let page;
     try {
       page = await fetchJSON(`/api/pages/${encodeURIComponent(filename)}`);
     } catch (err) {
+      if (openPage.latest !== token) return;
       showEditorError(err.message);
       return;
     }
+    if (openPage.latest !== token) return;
     mountEditor(page);
   }
 
   async function savePage() {
     if (!state.current || !state.editor) return;
+    showEditorMessage('');
+    showEditorError('');
     const content = state.current.type === 'html' ? state.editor.getHTML() : state.editor.getMarkdown();
     try {
       const updated = await fetchJSON(`/api/pages/${encodeURIComponent(state.current.filename)}`, {
