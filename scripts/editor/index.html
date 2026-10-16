@@ -5,12 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Content Editor</title>
 <link rel="stylesheet" href="https://cdn.datatables.net/v/dt/dt-3.1.2/datatables.min.css">
+<link rel="stylesheet" href="https://uicdn.toast.com/editor/3.2.2/toastui-editor.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="layout">
   <div class="sidebar">
     <nav id="type-nav" class="type-nav"></nav>
+    <nav class="type-nav">
+      <a href="#pages" id="pages-nav-link">Pages</a>
+    </nav>
     <div class="sidebar-tools">
       <h2 class="tools-heading">Site</h2>
       <div class="tool" id="inbox-tool" hidden>
@@ -37,7 +41,7 @@
       </div>
       <div id="inbox-list"></div>
     </section>
-    <div class="table-panel">
+    <div id="type-panel" class="table-panel">
       <div class="table-header">
         <h1 id="type-title"></h1>
         <button id="new-button" type="button">New</button>
@@ -52,9 +56,59 @@
       <div id="form-message" class="form-message" hidden role="status"></div>
       <form id="record-form"></form>
     </div>
+
+    <section id="pages-panel" class="table-panel" hidden>
+      <div class="table-header">
+        <h1>Pages</h1>
+        <button id="pages-new-button" type="button">New</button>
+      </div>
+      <div id="pages-loading" class="loading" hidden role="status">Loading pages…</div>
+      <div id="pages-load-error" class="form-error" hidden role="alert"></div>
+      <div id="pages-table-body"><table id="pages-table"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <div id="page-new-panel" class="form-panel" hidden>
+      <h2>New page</h2>
+      <div id="page-new-error" class="form-error" hidden></div>
+      <form id="page-new-form">
+        <div class="field">
+          <label for="page-new-title">Title</label>
+          <input type="text" id="page-new-title" name="title" required>
+        </div>
+        <div class="field">
+          <label for="page-new-format">Format</label>
+          <select id="page-new-format" name="format">
+            <option value="markdown" selected>Markdown</option>
+            <option value="html">HTML</option>
+          </select>
+        </div>
+        <div class="field">
+          <button type="submit">Create</button>
+          <button type="button" id="page-new-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <section id="page-editor-panel" class="table-panel" hidden>
+      <div class="table-header">
+        <h1 id="page-editor-title"></h1>
+        <div>
+          <button id="page-save-button" type="button">Save</button>
+          <button id="page-delete-button" type="button">Delete</button>
+          <button id="page-editor-close" type="button">Close</button>
+        </div>
+      </div>
+      <p id="page-html-notice" class="inbox-warning" hidden>
+        This page is raw HTML. Saving normalizes its markup to what the editor can represent — custom classes, embeds, or unusual nesting may be simplified.
+      </p>
+      <div id="page-editor-message" class="form-message" hidden role="status"></div>
+      <div id="page-editor-error" class="form-error" hidden role="alert"></div>
+      <div id="page-editor-host"></div>
+    </section>
   </main>
 </div>
 <script src="https://cdn.datatables.net/v/dt/dt-3.1.2/datatables.min.js"></script>
+<script src="https://uicdn.toast.com/editor/3.2.2/toastui-editor-all.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

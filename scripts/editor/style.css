@@ -62,3 +62,4 @@ td { white-space: pre-line; vertical-align: top; }
 .inbox-warning { background: #fde8e8; border: 1px solid #f5b5b5; padding: 0.5rem; color: #a00; }
 .inbox-changes th, .inbox-changes td { text-align: left; padding: 0.4rem; }
 .inbox-actions { margin: 0.75rem 0 0; }
+#page-editor-host { min-height: 480px; margin-top: 1rem; }
