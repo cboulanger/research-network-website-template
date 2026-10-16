@@ -12,7 +12,7 @@
       "title": { "title": "Project title", "type": "string", "minLength": 1 },
       "subtitle": { "title": "Subtitle", "type": "string" },
       "description": { "title": "Description", "type": "string", "x-editor": { "widget": "textarea", "rows": 15 } },
-      "url": { "title": "Project web page (URL)", "type": "string", "pattern": "^https?://[^\\s\"'<>]+$" },
+      "url": { "title": "Project web page (URL)", "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-]+\\.(md|html))$", "x-editor": { "widget": "page-link" } },
       "image_url": { "title": "Image (URL or file name)", "type": "string", "pattern": "^(https?://[^\\s\"'<>]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$" },
       "participants": {
         "title": "Participants",
