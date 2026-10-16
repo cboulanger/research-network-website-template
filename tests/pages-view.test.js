@@ -60,10 +60,10 @@ class StubEditor {
   destroy() {}
 }
 
-function setup({ fetchFn, confirmFn = () => true, alertFn = () => {} } = {}) {
+function setup({ fetchFn, confirmFn = () => true, alertFn = () => {}, EditorCtor = StubEditor } = {}) {
   const dom = new JSDOM(PAGE_HTML);
   const doc = dom.window.document;
-  initPagesView({ doc, fetchFn, confirmFn, alertFn, DataTableCtor: StubDataTable, EditorCtor: StubEditor });
+  initPagesView({ doc, fetchFn, confirmFn, alertFn, DataTableCtor: StubDataTable, EditorCtor });
   return { dom, doc };
 }
 
@@ -136,6 +136,23 @@ test('opening an html page mounts the editor in wysiwyg mode via setHTML and sho
   assert.equal(lastEditor.options.initialEditType, 'wysiwyg');
   assert.equal(lastEditor.value, '<h1>Example</h1>');
   assert.equal(doc.getElementById('page-html-notice').hidden, false);
+});
+
+test('when the editor script fails to load, opening a page shows a friendly error instead of throwing', async () => {
+  const fetchFn = async (url) => {
+    if (url === '/api/pages') return jsonResponse([{ filename: 'about.md', type: 'markdown', title: 'About' }]);
+    if (url === '/api/pages/about.md') return jsonResponse({ filename: 'about.md', type: 'markdown', content: '# About' });
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+  const { doc } = setup({ fetchFn, EditorCtor: null });
+  doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
+  await new Promise((r) => setTimeout(r, 0));
+  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(doc.getElementById('page-editor-panel').hidden, false);
+  assert.match(doc.getElementById('page-editor-error').textContent, /editor script failed to load/);
+  assert.equal(doc.getElementById('page-editor-error').hidden, false);
 });
 
 test('saving a markdown page PUTs getMarkdown() and shows a confirmation', async () => {

@@ -116,6 +116,10 @@ export function initPagesView({
     showEditorError('');
     const host = doc.getElementById('page-editor-host');
     host.innerHTML = '';
+    if (typeof EditorCtor !== 'function') {
+      showEditorError('Could not load the page editor — the editor script failed to load. Reload this page; if the problem persists, check your network connection to this server.');
+      return;
+    }
     if (page.type === 'html') {
       state.editor = new EditorCtor({ el: host, initialEditType: 'wysiwyg', height: '480px' });
       state.editor.setHTML(page.content);

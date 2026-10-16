@@ -27,6 +27,12 @@ const STATIC_FILES = {
   '/style.css': { file: 'style.css', type: 'text/css' },
   '/inbox-view.js': { file: 'inbox-view.js', type: 'text/javascript' },
   '/pages-view.js': { file: 'pages-view.js', type: 'text/javascript' },
+  // Vendored rather than CDN-hosted: Toast UI only publishes this
+  // self-contained bundle (no separate ProseMirror script tags to load) on
+  // uicdn.toast.com, which isn't mirrored on jsdelivr/unpkg/cdnjs, so a
+  // network block on that one domain has no CDN fallback.
+  '/vendor/toastui-editor-all.min.js': { file: 'vendor/toastui-editor-all.min.js', type: 'text/javascript' },
+  '/vendor/toastui-editor.min.css': { file: 'vendor/toastui-editor.min.css', type: 'text/css' },
 };
 
 const DEFAULT_INBOX_POLL_MS = 60_000;

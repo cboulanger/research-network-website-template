@@ -107,10 +107,22 @@ attempting the file operation.
 - **New page:** the "New" button opens a minimal form — Title (text) and
   Format (`Markdown` default-selected, `HTML`) — posting to `POST /api/pages`
   and then opening the created page for editing.
-- **Page editor:** [Toast UI Editor](https://ui.toast.com/tui-editor),
-  loaded via CDN `<link>`/`<script>` tags in `scripts/editor/index.html`
-  (same no-bundler CDN approach as DataTables — see the DataTables design
-  doc's §1 for the precedent). No new npm dependency.
+- **Page editor:** [Toast UI Editor](https://ui.toast.com/tui-editor) 3.2.2,
+  loaded via `<link>`/`<script>` tags in `scripts/editor/index.html`. **Not
+  CDN-hosted** (unlike DataTables): the self-contained "all-in-one" bundle
+  this needs (no separate `prosemirror-*` script tags to wire up) is only
+  published by Toast UI on their own `uicdn.toast.com`, which isn't mirrored
+  on jsdelivr/unpkg/cdnjs — the plain npm package has external ProseMirror
+  dependencies that don't resolve as a bare script tag. A real failure to
+  reach `uicdn.toast.com` (persistent, not transient) surfaced this during
+  testing, so the two prebuilt files (`toastui-editor-all.min.js`,
+  `toastui-editor.min.css`, ~700KB total) are vendored into
+  `scripts/editor/vendor/` and served by `edit-server.mjs`'s existing
+  static-file mechanism instead — no bundler, no build step, just two
+  downloaded-once static files with no runtime third-party dependency.
+  `pages-view.js`'s `mountEditor()` also checks `typeof EditorCtor ===
+  'function'` before use, showing a plain error message instead of an
+  uncaught exception if the script somehow still isn't present.
   - Markdown-type pages: `new toastui.Editor({ initialEditType: 'markdown', ... })`
     with `initialValue` set to the loaded source; saved via
     `editor.getMarkdown()`.
@@ -159,6 +171,8 @@ unit-tested; the logic underneath it is:
   converting a page between markdown and HTML format after creation.
 - Any locking/conflict handling beyond the existing single-admin-editor
   assumption already made by every other collection in this tool.
-- Self-hosting Toast UI Editor (e.g. via npm + bundling) instead of the CDN.
+- Installing Toast UI Editor as an npm dependency and bundling it (the two
+  prebuilt files are vendored as static assets instead — see §3 — which is a
+  narrower thing than adding a bundler/build step to this project).
 - Arbitrary-HTML-fidelity guarantees in WYSIWYG mode (see §3's known
   limitation).
