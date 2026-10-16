@@ -1,5 +1,6 @@
 import { editorHints, renderRecordFields, collectRecordData } from '/assets/js/record-form.js';
 import { renderInboxEntries } from '/inbox-view.js';
+import { initPagesView, hidePagesPanels } from '/pages-view.js';
 
 const state = {
   types: [],
@@ -58,6 +59,7 @@ async function loadTypes() {
     const a = e.target.closest('a[data-type]');
     if (!a) return;
     e.preventDefault();
+    hidePagesPanels();
     selectType(a.dataset.type);
   });
 }
@@ -99,6 +101,7 @@ function probeTypes() {
 
 async function selectType(name) {
   state.currentType = state.types.find((t) => t.name === name);
+  document.getElementById('type-panel').hidden = false;
   document.querySelectorAll('#type-nav a').forEach((a) => a.classList.toggle('active', a.dataset.type === name));
   document.getElementById('type-title').textContent = name;
   document.getElementById('load-error').hidden = true;
@@ -486,3 +489,5 @@ loadTypes().then(() => {
   if (state.types.length) selectType(state.types[0].name);
   probeTypes();
 });
+
+initPagesView();
