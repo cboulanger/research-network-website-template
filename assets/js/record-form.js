@@ -145,7 +145,8 @@ function buildPageLinkDropdown(input, pages) {
     if (!matches.length) return hide();
     dropdown.innerHTML = '';
     matches.forEach((p) => {
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
       const titleSpan = document.createElement('span');
       titleSpan.textContent = p.title;
       const filenameSpan = document.createElement('span');

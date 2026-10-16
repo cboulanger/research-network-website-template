@@ -66,6 +66,6 @@ td { white-space: pre-line; vertical-align: top; }
 
 .page-link-field { position: relative; }
 .page-link-results { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid #ddd; max-height: 150px; overflow-y: auto; }
-.page-link-results div { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.2rem 0.4rem; cursor: pointer; }
-.page-link-results div:hover { background: #f4f4f4; }
+.page-link-results button { display: flex; justify-content: space-between; gap: 0.5rem; width: 100%; padding: 0.2rem 0.4rem; border: none; background: none; font: inherit; text-align: left; cursor: pointer; }
+.page-link-results button:hover, .page-link-results button:focus { background: #f4f4f4; }
 .page-link-filename { color: #777; font-size: 0.85rem; white-space: nowrap; }

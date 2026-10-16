@@ -87,9 +87,27 @@ test('a page-link field shows matching pages as the user types, and selecting on
   assert.match(dropdown.textContent, /About the Network/);
   assert.doesNotMatch(dropdown.textContent, /Example HTML/);
 
-  dropdown.querySelector('div').click();
+  dropdown.querySelector('button').click();
   assert.equal(input.value, 'about.md');
   assert.equal(dropdown.hidden, true);
+});
+
+test('a page-link dropdown result is a real button, reachable by keyboard like the participant picker', () => {
+  const form = makeForm();
+  const schema = {
+    type: 'object',
+    properties: { url: { type: 'string', title: 'Link', 'x-editor': { widget: 'page-link' } } },
+  };
+  const pages = [{ filename: 'about.md', type: 'markdown', title: 'About the Network' }];
+  renderRecordFields(form, { itemSchema: schema, record: {}, typeName: 'events', pages });
+
+  const input = form.querySelector('#field-url');
+  input.value = 'about';
+  input.dispatchEvent(new document.defaultView.Event('input'));
+
+  const row = form.querySelector('.page-link-results button');
+  assert.ok(row, 'expected the matched result to be a <button>, not a plain <div>');
+  assert.equal(row.type, 'button');
 });
 
 test('a page-link field never shows a dropdown for a value starting with http', () => {
