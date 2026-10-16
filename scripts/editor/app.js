@@ -454,6 +454,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function reviewSubmission(staleEntry) {
+  hidePagesPanels();
   inboxPanel.hidden = true;
   // Keyless collections are addressed by array index, so re-fetch to make sure it still points at the right record.
   const refreshed = await loadInbox();

@@ -319,8 +319,9 @@ export function createServer({
           let content;
           try {
             content = await readContentFile(contentPath, `pages/${filename}`);
-          } catch {
-            return sendError(res, 404, `No page named "${filename}"`);
+          } catch (err) {
+            if (err.code === 'ENOENT' || /: 404 /.test(err.message)) return sendError(res, 404, `No page named "${filename}"`);
+            throw err;
           }
           return sendJSON(res, 200, { filename, type: getDocType(filename), content });
         }
@@ -336,8 +337,9 @@ export function createServer({
         if (req.method === 'DELETE') {
           try {
             await deleteContentFile(contentPath, `pages/${filename}`);
-          } catch {
-            return sendError(res, 404, `No page named "${filename}"`);
+          } catch (err) {
+            if (err.code === 'ENOENT' || /: 404 /.test(err.message)) return sendError(res, 404, `No page named "${filename}"`);
+            throw err;
           }
           return sendJSON(res, 204, null);
         }

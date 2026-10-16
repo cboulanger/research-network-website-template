@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { createServer } from '../scripts/edit-server.mjs';
 
 async function startTestServer(fixture, options = {}) {
@@ -604,6 +605,39 @@ test('DELETE /api/pages/:filename removes the page', async () => {
     assert.equal((await fetch(`${ctx.base}/api/pages/about.md`, { method: 'DELETE' })).status, 404);
   } finally {
     await ctx.close();
+  }
+});
+
+test('GET and DELETE /api/pages/:filename propagate a non-404 remote failure instead of reporting "not found"', async () => {
+  // Stubbing globalThis.fetch would also intercept this test's own calls to
+  // the local editor server (they go through the same global fetch), so
+  // instead point contentPath at a real (fake) remote HTTP server that
+  // returns non-404 failures for the page requests, exercising the real
+  // readContentFile/deleteContentFile network path.
+  const fakeRemote = http.createServer((req, res) => {
+    if (req.method === 'DELETE') {
+      res.writeHead(403, 'Forbidden');
+      res.end();
+      return;
+    }
+    res.writeHead(500, 'Internal Server Error');
+    res.end();
+  });
+  await new Promise((resolve) => fakeRemote.listen(0, '127.0.0.1', resolve));
+  const remoteBase = `http://127.0.0.1:${fakeRemote.address().port}/content`;
+
+  const server = createServer({ contentPath: remoteBase, schemaDir: 'schema', editorDir: 'scripts/editor' });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const getRes = await fetch(`${base}/api/pages/about.md`);
+    assert.notEqual(getRes.status, 404);
+
+    const deleteRes = await fetch(`${base}/api/pages/about.md`, { method: 'DELETE' });
+    assert.notEqual(deleteRes.status, 404);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => fakeRemote.close(resolve));
   }
 });
 

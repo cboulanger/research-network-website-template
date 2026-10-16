@@ -221,6 +221,57 @@ test('a failing delete calls alertFn and leaves the row in place', async () => {
   assert.equal(doc.querySelectorAll('#pages-table tbody tr').length, 1);
 });
 
+test('deleting from inside the open editor asks for confirmation and returns to the list', async () => {
+  let confirmed = false;
+  const fetchFn = async (url, options) => {
+    if (url === '/api/pages' && (!options || !options.method)) {
+      return jsonResponse(confirmed ? [] : [{ filename: 'about.md', type: 'markdown', title: 'About' }]);
+    }
+    if (url === '/api/pages/about.md' && (!options || !options.method)) {
+      return jsonResponse({ filename: 'about.md', type: 'markdown', content: '# About' });
+    }
+    if (url === '/api/pages/about.md' && options?.method === 'DELETE') {
+      confirmed = true;
+      return jsonResponse(null, 204);
+    }
+    throw new Error(`unexpected fetch: ${url} ${options?.method}`);
+  };
+  const { doc } = setup({ fetchFn });
+  doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
+  await new Promise((r) => setTimeout(r, 0));
+  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 0));
+
+  doc.getElementById('page-delete-button').dispatchEvent(new doc.defaultView.Event('click'));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(doc.getElementById('page-editor-panel').hidden, true);
+  assert.equal(doc.getElementById('pages-panel').hidden, false);
+});
+
+test('closing the editor without saving returns to the list unchanged', async () => {
+  const fetchFn = async (url, options) => {
+    if (url === '/api/pages' && (!options || !options.method)) {
+      return jsonResponse([{ filename: 'about.md', type: 'markdown', title: 'About' }]);
+    }
+    if (url === '/api/pages/about.md') {
+      return jsonResponse({ filename: 'about.md', type: 'markdown', content: '# About' });
+    }
+    throw new Error(`unexpected fetch: ${url} ${options?.method}`);
+  };
+  const { doc } = setup({ fetchFn });
+  doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
+  await new Promise((r) => setTimeout(r, 0));
+  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 0));
+
+  doc.getElementById('page-editor-close').dispatchEvent(new doc.defaultView.Event('click'));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(doc.getElementById('page-editor-panel').hidden, true);
+  assert.equal(doc.getElementById('pages-panel').hidden, false);
+});
+
 test('declining the confirmation does not delete', async () => {
   const fetchFn = async (url, options) => {
     if (url === '/api/pages' && (!options || !options.method)) {
