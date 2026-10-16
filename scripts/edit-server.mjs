@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Ajv from 'ajv';
-import { readContentFile, writeContentFile } from './lib/content-store.mjs';
+import { marked } from 'marked';
+import { readContentFile, writeContentFile, deleteContentFile, listContentDir } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
 import { cascadeDeleteMember, findProjectsReferencingMember } from './lib/member-cascade.mjs';
@@ -13,7 +14,7 @@ import { createInbox } from './lib/inbox.mjs';
 import { contentStateStore, fileStateStore, withLegacyFallback } from './lib/inbox-state-store.mjs';
 import { getPublicEditConfig } from './lib/public-edit.mjs';
 import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
-import { computeMemberId, slugify } from '../assets/js/shared.js';
+import { computeMemberId, slugify, isValidDocFilename, getDocType, titleFromFilename, escapeHTML } from '../assets/js/shared.js';
 
 // Some networks have a broken IPv6 route to the WebDAV host, which stalls the
 // connection until Node's 10s connect timeout. Try IPv4 first.
@@ -25,13 +26,14 @@ const STATIC_FILES = {
   '/app.js': { file: 'app.js', type: 'text/javascript' },
   '/style.css': { file: 'style.css', type: 'text/css' },
   '/inbox-view.js': { file: 'inbox-view.js', type: 'text/javascript' },
+  '/pages-view.js': { file: 'pages-view.js', type: 'text/javascript' },
 };
 
 const DEFAULT_INBOX_POLL_MS = 60_000;
 const MIN_INBOX_POLL_MS = 10_000;
 
 // Browser modules shared between the public site and the editor.
-const SHARED_JS = /^\/assets\/js\/(record-form)\.js$/;
+const SHARED_JS = /^\/assets\/js\/(record-form|shared)\.js$/;
 
 const PREVIEW_MIME = {
   '.html': 'text/html',
@@ -127,6 +129,17 @@ export function createServer({
       if (err.code === 'ENOENT' || /: 404 /.test(err.message)) return null;
       throw err;
     }
+  }
+
+  async function pageTitle(filename) {
+    const source = await readContentFile(contentPath, `pages/${filename}`);
+    const bodyHTML = getDocType(filename) === 'markdown' ? marked.parse(source) : source;
+    const headingMatch = bodyHTML.match(/<h1[^>]*>(.*?)<\/h1>/i);
+    return headingMatch ? headingMatch[1].replace(/<[^>]+>/g, '') : titleFromFilename(filename);
+  }
+
+  async function listPageFilenames() {
+    return (await listContentDir(contentPath, 'pages')).filter(isValidDocFilename);
   }
 
   function validateOrThrow(name, records) {
@@ -265,6 +278,69 @@ export function createServer({
         }
         const found = await inbox.resolve(id);
         return found ? sendJSON(res, 204, null) : sendError(res, 404, 'No such submission');
+      }
+    }
+
+    if (parts[1] === 'pages') {
+      if (parts.length === 2 && req.method === 'GET') {
+        const filenames = await listPageFilenames();
+        const entries = await Promise.all(
+          filenames.map(async (filename) => ({ filename, type: getDocType(filename), title: await pageTitle(filename) }))
+        );
+        entries.sort((a, b) => a.title.localeCompare(b.title));
+        return sendJSON(res, 200, entries);
+      }
+
+      if (parts.length === 2 && req.method === 'POST') {
+        const body = await readJSONBody(req);
+        const title = typeof body.title === 'string' ? body.title.trim() : '';
+        const format = body.format === 'html' ? 'html' : 'markdown';
+        const slug = slugify(title);
+        if (!slug) return sendError(res, 400, 'Title must contain at least one letter or number.');
+        const filename = `${slug}.${format === 'html' ? 'html' : 'md'}`;
+        if ((await listPageFilenames()).includes(filename)) {
+          return sendError(res, 409, `A page named "${filename}" already exists.`);
+        }
+        const content = format === 'html' ? `<h1>${escapeHTML(title)}</h1>\n` : `# ${title}\n`;
+        await writeContentFile(contentPath, `pages/${filename}`, content, format === 'html' ? 'text/html' : 'text/markdown');
+        return sendJSON(res, 201, { filename, type: format, content, title });
+      }
+
+      if (parts.length === 3) {
+        let filename;
+        try {
+          filename = decodeURIComponent(parts[2]);
+        } catch {
+          return sendError(res, 400, 'Malformed filename');
+        }
+        if (!isValidDocFilename(filename)) return sendError(res, 404, 'Not found');
+
+        if (req.method === 'GET') {
+          let content;
+          try {
+            content = await readContentFile(contentPath, `pages/${filename}`);
+          } catch {
+            return sendError(res, 404, `No page named "${filename}"`);
+          }
+          return sendJSON(res, 200, { filename, type: getDocType(filename), content });
+        }
+
+        if (req.method === 'PUT') {
+          const body = await readJSONBody(req);
+          if (typeof body.content !== 'string') return sendError(res, 400, 'content must be a string');
+          const type = getDocType(filename);
+          await writeContentFile(contentPath, `pages/${filename}`, body.content, type === 'html' ? 'text/html' : 'text/markdown');
+          return sendJSON(res, 200, { filename, type, content: body.content });
+        }
+
+        if (req.method === 'DELETE') {
+          try {
+            await deleteContentFile(contentPath, `pages/${filename}`);
+          } catch {
+            return sendError(res, 404, `No page named "${filename}"`);
+          }
+          return sendJSON(res, 204, null);
+        }
       }
     }
 
