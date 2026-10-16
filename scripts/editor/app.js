@@ -8,6 +8,7 @@ const state = {
   schema: null,
   records: [],
   members: [],
+  pages: [],
   editingKey: null,
   inboxEntry: null,
   inboxSaved: false, // record already saved during this inbox review
@@ -117,6 +118,9 @@ async function selectType(name) {
     state.records = await fetchJSON(`/api/data/${name}`);
     if (name === 'projects') {
       state.members = await fetchJSON('/api/data/members');
+    }
+    if (name === 'events' || name === 'news' || name === 'projects') {
+      state.pages = await fetchJSON('/api/pages');
     }
   } catch (err) {
     setLoadFailed(name, err);
@@ -231,7 +235,7 @@ function showFormError(message, details) {
 function renderForm(record) {
   const form = document.getElementById('record-form');
   form.innerHTML = '';
-  renderRecordFields(form, { itemSchema: recordSchema(), record, typeName: state.currentType.name, members: state.members });
+  renderRecordFields(form, { itemSchema: recordSchema(), record, typeName: state.currentType.name, members: state.members, pages: state.pages });
 
   const actions = document.createElement('div');
   actions.className = 'field';
