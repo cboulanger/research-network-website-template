@@ -5,7 +5,6 @@ import path from 'node:path';
 import { marked } from 'marked';
 import { resolveContent } from './lib/resolve-content.mjs';
 import { renderPage } from './lib/page-template.mjs';
-import { rewritePagesLinksInHTML } from './lib/rewrite-pages-url.mjs';
 import { parseZoteroGroupId, fetchZoteroItems } from './lib/zotero.mjs';
 import { selectMemberPublications } from './lib/publications.mjs';
 import { escapeHTML } from '../assets/js/shared.js';
@@ -72,10 +71,8 @@ async function buildIndexPage(content) {
 
   const newsTeaser = {};
   renderNewsTeaser(content.news, newsTeaser);
-  newsTeaser.innerHTML = rewritePagesLinksInHTML(newsTeaser.innerHTML);
   const eventsTeaser = {};
   renderEventsTeaser(content.events, eventsTeaser);
-  eventsTeaser.innerHTML = rewritePagesLinksInHTML(eventsTeaser.innerHTML);
   let publicationsBox = '';
   if (content.publications) {
     const publicationsTeaser = {};
@@ -166,7 +163,6 @@ async function buildEventsPage(content) {
   const { site, events } = content;
   const listContainer = {};
   renderEvents(events, listContainer);
-  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
   const mainHTML = `<h1>Events</h1>\n<div id="events-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'events.html'),
@@ -186,7 +182,6 @@ async function buildNewsPage(content) {
   const { site, news } = content;
   const listContainer = {};
   renderNews(news, listContainer);
-  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
   const mainHTML = `<h1>News</h1>\n<div id="news-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'news.html'),
@@ -266,7 +261,6 @@ async function buildProjectsPage(content) {
   const { site, projects, members } = content;
   const listContainer = {};
   renderListView(projects, members, listContainer);
-  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
 
   const { nodes, links } = buildGraphData(projects, members);
   const graphData = sanitizeGraphData(nodes, links);

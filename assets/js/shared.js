@@ -31,10 +31,16 @@ export function resolvePortraitUrl(portraitUrl) {
 }
 
 // A url that is not an http(s) URL names a file in content/pages/; the
-// built site serves every page through pages.html with the filename as a
-// query parameter, so that's the link form a bare filename resolves to.
+// built site pre-renders every page to its own pages/<name>.html file (see
+// buildPagesDocs in scripts/build.mjs — there is no live pages.html router),
+// so that's the link form a bare filename resolves to. Also tolerates the
+// deprecated pages.html?doc=<filename> link form some not-yet-migrated
+// stored content may still use, resolving it to the same place.
 export function resolvePageLink(url) {
-  return isExternalLink(url) ? url : `pages.html?doc=${url}`;
+  if (isExternalLink(url)) return url;
+  const bare = url.replace(/^pages\.html\?doc=/, '');
+  const stem = bare.replace(/\.(md|html)$/, '');
+  return `pages/${stem}.html`;
 }
 
 export function slugify(value) {

@@ -27,7 +27,7 @@ test('renderNewsItem adds target=_blank only for external links', () => {
   const internal = renderNewsItem(items[1]);
   assert.match(external, /target="_blank" rel="noopener"/);
   assert.doesNotMatch(internal, /target="_blank"/);
-  assert.match(internal, /href="pages\.html\?doc=about\.md"/);
+  assert.match(internal, /href="pages\/about\.html"/);
 });
 
 test('renderNewsItem escapes a hostile title', () => {

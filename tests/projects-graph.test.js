@@ -115,7 +115,7 @@ test('renderListView links to an external project URL with target=_blank', () =>
 test('renderListView links to an internal page filename without target=_blank', () => {
   const container = {};
   renderListView([{ ...projects[0], url: 'about.md' }], members, container);
-  assert.match(container.innerHTML, /<a href="pages\.html\?doc=about\.md">Visit project/);
+  assert.match(container.innerHTML, /<a href="pages\/about\.html">Visit project/);
   assert.doesNotMatch(container.innerHTML, /target="_blank"/);
 });
 

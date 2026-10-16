@@ -36,7 +36,7 @@ test('renderEventItem adds target=_blank only for external links', () => {
   );
   assert.match(external, /target="_blank" rel="noopener"/);
   assert.doesNotMatch(internal, /target="_blank"/);
-  assert.match(internal, /href="pages\.html\?doc=notes\.md"/);
+  assert.match(internal, /href="pages\/notes\.html"/);
 });
 
 test('renderEventsTeaser shows only the 3 most recent items plus a "See all events" link', () => {
