@@ -1,4 +1,4 @@
-import { escapeHTML, getInitials, hashColor, parseViewHash, resolvePortraitUrl } from './shared.js';
+import { escapeHTML, getInitials, hashColor, parseViewHash, resolvePortraitUrl, resolvePageLink, isExternalLink } from './shared.js';
 
 export function buildGraphData(projects, members) {
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -88,7 +88,7 @@ export function renderListView(projects, members, container) {
             <p class="participants">${p.participantNames
               .map((s) => `<a href="members.html#${s.slug}" data-slug="${s.slug}">${escapeHTML(s.name)}</a>`)
               .join(', ')}</p>
-            ${p.url ? `<a href="${escapeHTML(p.url)}" target="_blank" rel="noopener">Visit project &#8599;</a>` : ''}
+            ${p.url ? `<a href="${escapeHTML(resolvePageLink(p.url))}"${isExternalLink(p.url) ? ' target="_blank" rel="noopener"' : ''}>Visit project &#8599;</a>` : ''}
           </li>`
         )
         .join('')
@@ -163,7 +163,14 @@ function openModal(project) {
 
   const link = document.getElementById('modal-link');
   if (project.url) {
-    link.href = project.url;
+    link.href = resolvePageLink(project.url);
+    if (isExternalLink(project.url)) {
+      link.target = '_blank';
+      link.rel = 'noopener';
+    } else {
+      link.removeAttribute('target');
+      link.removeAttribute('rel');
+    }
     link.hidden = false;
   } else {
     link.hidden = true;

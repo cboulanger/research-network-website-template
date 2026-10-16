@@ -266,6 +266,7 @@ async function buildProjectsPage(content) {
   const { site, projects, members } = content;
   const listContainer = {};
   renderListView(projects, members, listContainer);
+  listContainer.innerHTML = rewritePagesLinksInHTML(listContainer.innerHTML);
 
   const { nodes, links } = buildGraphData(projects, members);
   const graphData = sanitizeGraphData(nodes, links);
