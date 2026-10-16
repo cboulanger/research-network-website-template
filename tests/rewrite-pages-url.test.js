@@ -24,3 +24,8 @@ test('rewritePagesLinksInHTML leaves external links and plain text unchanged', (
   const html = '<a href="https://example.org">Ext</a><span>no links here</span>';
   assert.equal(rewritePagesLinksInHTML(html), html);
 });
+
+test('rewritePagesLinksInHTML does not rewrite the text "pages.html?doc=..." when it is not inside an href', () => {
+  const html = '<span class="event-title">Launching pages.html?doc=about.md support</span>';
+  assert.equal(rewritePagesLinksInHTML(html), html);
+});

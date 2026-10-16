@@ -15,8 +15,11 @@ export function rewritePagesUrl(url) {
 // *after* rendering, not on the raw stored url beforehand (rewriting the raw
 // url first would just have resolvePageLink prefix it again, producing a
 // broken double-prefixed pages.html?doc=pages/<name>.html link).
-const PAGES_DOC_LINK = /pages\.html\?doc=[A-Za-z0-9_-]+\.(?:md|html)/g;
+// Anchored to href="..." rather than scanning the whole blob, so a title
+// that happened to literally contain this exact text never gets rewritten —
+// only an actual link href can match.
+const PAGES_DOC_HREF = /href="(pages\.html\?doc=[A-Za-z0-9_-]+\.(?:md|html))"/g;
 
 export function rewritePagesLinksInHTML(html) {
-  return html.replace(PAGES_DOC_LINK, (match) => rewritePagesUrl(match));
+  return html.replace(PAGES_DOC_HREF, (_match, url) => `href="${rewritePagesUrl(url)}"`);
 }
