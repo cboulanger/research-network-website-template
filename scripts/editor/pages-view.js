@@ -80,11 +80,14 @@ export function initPagesView({
     const tbody = doc.querySelector('#pages-table tbody');
     tbody.innerHTML = pages
       .map(
-        (page) => `<tr data-filename="${escapeHTML(page.filename)}">
+        (page) => `<tr>
           <td>${escapeHTML(page.title)}</td>
           <td>${escapeHTML(page.filename)}</td>
           <td>${escapeHTML(page.type)}</td>
-          <td class="row-actions"><button type="button" data-action="delete" data-filename="${escapeHTML(page.filename)}">Delete</button></td>
+          <td class="row-actions">
+            <button type="button" data-action="edit" data-filename="${escapeHTML(page.filename)}">Edit</button>
+            <button type="button" data-action="delete" data-filename="${escapeHTML(page.filename)}">Delete</button>
+          </td>
         </tr>`
       )
       .join('');
@@ -189,14 +192,10 @@ export function initPagesView({
   });
 
   doc.querySelector('#pages-table tbody').addEventListener('click', (e) => {
-    const deleteButton = e.target.closest('button[data-action="delete"]');
-    if (deleteButton) {
-      e.stopPropagation();
-      deletePage(deleteButton.dataset.filename);
-      return;
-    }
-    const row = e.target.closest('tr[data-filename]');
-    if (row) openPage(row.dataset.filename);
+    const button = e.target.closest('button[data-action]');
+    if (!button) return;
+    if (button.dataset.action === 'edit') openPage(button.dataset.filename);
+    if (button.dataset.action === 'delete') deletePage(button.dataset.filename);
   });
 
   doc.getElementById('pages-new-button').addEventListener('click', () => {

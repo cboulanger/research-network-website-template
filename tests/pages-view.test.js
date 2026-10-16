@@ -100,7 +100,7 @@ test('a load error is shown and the list stays hidden', async () => {
   assert.equal(doc.getElementById('pages-load-error').hidden, false);
 });
 
-test('clicking a row opens it in the editor with the loaded content', async () => {
+test('clicking a row\'s Edit button opens it in the editor with the loaded content', async () => {
   const fetchFn = async (url) => {
     if (url === '/api/pages') return jsonResponse([{ filename: 'about.md', type: 'markdown', title: 'About' }]);
     if (url === '/api/pages/about.md') return jsonResponse({ filename: 'about.md', type: 'markdown', content: '# About' });
@@ -110,7 +110,7 @@ test('clicking a row opens it in the editor with the loaded content', async () =
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
 
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   assert.equal(doc.getElementById('page-editor-panel').hidden, false);
@@ -130,7 +130,7 @@ test('opening an html page mounts the editor in wysiwyg mode via setHTML and sho
   const { doc } = setup({ fetchFn });
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   assert.equal(lastEditor.options.initialEditType, 'wysiwyg');
@@ -147,7 +147,7 @@ test('when the editor script fails to load, opening a page shows a friendly erro
   const { doc } = setup({ fetchFn, EditorCtor: null });
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   assert.equal(doc.getElementById('page-editor-panel').hidden, false);
@@ -171,7 +171,7 @@ test('saving a markdown page PUTs getMarkdown() and shows a confirmation', async
   const { doc } = setup({ fetchFn });
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   lastEditor.value = '# About\n\nEdited.';
@@ -256,7 +256,7 @@ test('deleting from inside the open editor asks for confirmation and returns to 
   const { doc } = setup({ fetchFn });
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   doc.getElementById('page-delete-button').dispatchEvent(new doc.defaultView.Event('click'));
@@ -279,7 +279,7 @@ test('closing the editor without saving returns to the list unchanged', async ()
   const { doc } = setup({ fetchFn });
   doc.getElementById('pages-nav-link').dispatchEvent(new doc.defaultView.Event('click', { cancelable: true }));
   await new Promise((r) => setTimeout(r, 0));
-  doc.querySelector('#pages-table tbody tr').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
+  doc.querySelector('#pages-table tbody button[data-action="edit"]').dispatchEvent(new doc.defaultView.Event('click', { bubbles: true }));
   await new Promise((r) => setTimeout(r, 0));
 
   doc.getElementById('page-editor-close').dispatchEvent(new doc.defaultView.Event('click'));
