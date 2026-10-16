@@ -30,6 +30,13 @@ export function resolvePortraitUrl(portraitUrl) {
   return isExternalLink(portraitUrl) ? portraitUrl : `images/${portraitUrl}`;
 }
 
+// A url that is not an http(s) URL names a file in content/pages/; the
+// built site serves every page through pages.html with the filename as a
+// query parameter, so that's the link form a bare filename resolves to.
+export function resolvePageLink(url) {
+  return isExternalLink(url) ? url : `pages.html?doc=${url}`;
+}
+
 export function slugify(value) {
   return String(value ?? '')
     .normalize('NFD')
