@@ -19,18 +19,11 @@ async function fetchOk(url) {
 }
 
 // events.url/news.url/projects.url store either an external URL or a bare
-// page filename (see assets/js/shared.js's resolvePageLink) — but tolerate
-// the deprecated pages.html?doc=<filename> form too, for not-yet-migrated
-// stored content that still uses it.
-const LEGACY_PAGES_LINK = /^pages\.html\?doc=(.+)$/;
-
+// page filename (see assets/js/shared.js's resolvePageLink).
 function referencedPageNames(newsItems, eventsItems, projectItems) {
   const names = new Set(['about.md']);
   for (const item of [...newsItems, ...eventsItems, ...projectItems]) {
-    if (typeof item.url !== 'string') continue;
-    const legacyMatch = item.url.match(LEGACY_PAGES_LINK);
-    const candidate = legacyMatch ? legacyMatch[1] : item.url;
-    if (isValidDocFilename(candidate)) names.add(candidate);
+    if (typeof item.url === 'string' && isValidDocFilename(item.url)) names.add(item.url);
   }
   return [...names];
 }

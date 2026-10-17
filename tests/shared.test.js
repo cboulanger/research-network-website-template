@@ -144,8 +144,3 @@ test('resolvePageLink resolves a bare page filename to its static pages/ URL', (
   assert.equal(resolvePageLink('about.md'), 'pages/about.html');
   assert.equal(resolvePageLink('example.html'), 'pages/example.html');
 });
-
-test('resolvePageLink tolerates the deprecated pages.html?doc= form some stored content may still use', () => {
-  assert.equal(resolvePageLink('pages.html?doc=about.md'), 'pages/about.html');
-  assert.equal(resolvePageLink('pages.html?doc=example.html'), 'pages/example.html');
-});

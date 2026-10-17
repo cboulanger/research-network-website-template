@@ -76,30 +76,6 @@ test('materializeRemote fetches a page referenced by a project, not just by news
   }
 });
 
-test('materializeRemote still fetches a page stored in the deprecated pages.html?doc= link form', async () => {
-  const files = {
-    'data/site.json': FIXTURE_SITE,
-    'data/members.json': [],
-    'data/projects.json': [],
-    'data/events.json': [{ date: '2026-01-01', title: 'x', url: 'pages.html?doc=legacy.md' }],
-    'data/news.json': [],
-    'pages/about.md': '# About',
-    'pages/legacy.md': '# Legacy',
-    'images/favicon.ico': 'fake-ico-bytes',
-    'images/logo.png': 'fake-png-bytes',
-  };
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = fakeFetch(files);
-  try {
-    const dir = await materializeRemote('https://example.org/content');
-    const legacy = await readFile(path.join(dir, 'pages', 'legacy.md'), 'utf8');
-    assert.equal(legacy, '# Legacy');
-    await rm(dir, { recursive: true, force: true });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test('materializeRemote does not try to fetch a page for a plain external url', async () => {
   const files = {
     'data/site.json': FIXTURE_SITE,

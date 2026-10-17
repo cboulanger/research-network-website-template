@@ -33,13 +33,10 @@ export function resolvePortraitUrl(portraitUrl) {
 // A url that is not an http(s) URL names a file in content/pages/; the
 // built site pre-renders every page to its own pages/<name>.html file (see
 // buildPagesDocs in scripts/build.mjs — there is no live pages.html router),
-// so that's the link form a bare filename resolves to. Also tolerates the
-// deprecated pages.html?doc=<filename> link form some not-yet-migrated
-// stored content may still use, resolving it to the same place.
+// so that's the link form a bare filename resolves to.
 export function resolvePageLink(url) {
   if (isExternalLink(url)) return url;
-  const bare = url.replace(/^pages\.html\?doc=/, '');
-  const stem = bare.replace(/\.(md|html)$/, '');
+  const stem = url.replace(/\.(md|html)$/, '');
   return `pages/${stem}.html`;
 }
 
