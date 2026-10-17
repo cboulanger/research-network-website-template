@@ -137,7 +137,11 @@ test('waitForDeployStatus polls a GitHub run (not yet listed, then running, then
   const results = await waitForDeployStatus(triggered, { env: { GITHUB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
   assert.equal(results[0].ok, true);
   assert.match(results[0].message, /Succeeded/);
-  assert.match(results[0].message, /runs\/42/);
+  // The run URL is for investigating a failure, not for a success message
+  // the client would show instead of the "Open site" link; it's still
+  // exposed as its own field for callers that want it either way.
+  assert.doesNotMatch(results[0].message, /runs\/42/);
+  assert.equal(results[0].url, 'https://github.com/me/site/actions/runs/42');
 });
 
 test('waitForDeployStatus polls a GitLab pipeline to failure', async () => {
@@ -150,6 +154,8 @@ test('waitForDeployStatus polls a GitLab pipeline to failure', async () => {
   const results = await waitForDeployStatus(triggered, { env: { GITLAB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
   assert.equal(results[0].ok, false);
   assert.match(results[0].message, /Failed/);
+  assert.match(results[0].message, /gl\/p\/7/);
+  assert.equal(results[0].url, 'https://gl/p/7');
 });
 
 test('waitForDeployStatus reports a timeout when the pipeline never finishes', async () => {

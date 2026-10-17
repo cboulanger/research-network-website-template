@@ -245,9 +245,16 @@ export async function waitForDeployStatus(
       }
       if (status.runId) statusRef.runId = status.runId;
       if (status.done) {
+        // On success the caller shows a link to the live site, not the
+        // pipeline run, so the run URL is only worth stating inline when
+        // something went wrong and needs investigating; it's still exposed
+        // as `url` either way for callers that want it regardless.
         finalByResult.set(result, {
           ok: status.success,
-          message: `${status.success ? 'Succeeded' : 'Failed'} (${status.description}): ${status.url || result.message}`,
+          message: status.success
+            ? `Succeeded (${status.description})`
+            : `Failed (${status.description}): ${status.url || result.message}`,
+          url: status.url,
         });
         pending.delete(result);
       }

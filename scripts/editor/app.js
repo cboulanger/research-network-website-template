@@ -387,7 +387,25 @@ document.getElementById('deploy-button').addEventListener('click', async (e) => 
   try {
     const { results } = await fetchJSON('/api/deploy', { method: 'POST' });
     setStatusText(status, results.map((r) => `[${r.name}] ${r.message}`).join('\n'));
-    if (results.some((r) => !r.ok)) status.classList.add('error');
+    if (results.some((r) => !r.ok)) {
+      // A failed result's message already names the pipeline/run URL
+      // (setStatusText above turns it into a link), so the pipeline is
+      // reachable from here to see what went wrong.
+      status.classList.add('error');
+    } else {
+      // Every target succeeded: point at the live site instead, not the
+      // pipeline run that built it.
+      const { url } = await fetchJSON('/api/site').catch(() => ({ url: null }));
+      if (url) {
+        status.append(document.createElement('br'));
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Open site';
+        status.append(link);
+      }
+    }
   } catch (err) {
     status.classList.add('error');
     const details = Array.isArray(err.details)
