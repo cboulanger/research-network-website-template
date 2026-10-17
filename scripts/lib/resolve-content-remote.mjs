@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fetchWithTimeout, timeoutFromEnv } from './fetch-with-timeout.mjs';
-import { isExternalLink } from '../../assets/js/shared.js';
+import { isExternalLink, isValidDocFilename } from '../../assets/js/shared.js';
 import { authHeaders, readContentFile } from './content-store.mjs';
 
 const DATA_FILES = ['site', 'members', 'projects', 'events', 'news'];
@@ -18,12 +18,19 @@ async function fetchOk(url) {
   return res;
 }
 
-function referencedPageNames(newsItems, eventsItems) {
+// events.url/news.url/projects.url store either an external URL or a bare
+// page filename (see assets/js/shared.js's resolvePageLink) — but tolerate
+// the deprecated pages.html?doc=<filename> form too, for not-yet-migrated
+// stored content that still uses it.
+const LEGACY_PAGES_LINK = /^pages\.html\?doc=(.+)$/;
+
+function referencedPageNames(newsItems, eventsItems, projectItems) {
   const names = new Set(['about.md']);
-  const pattern = /^pages\.html\?doc=(.+)$/;
-  for (const item of [...newsItems, ...eventsItems]) {
-    const match = typeof item.url === 'string' ? item.url.match(pattern) : null;
-    if (match) names.add(match[1]);
+  for (const item of [...newsItems, ...eventsItems, ...projectItems]) {
+    if (typeof item.url !== 'string') continue;
+    const legacyMatch = item.url.match(LEGACY_PAGES_LINK);
+    const candidate = legacyMatch ? legacyMatch[1] : item.url;
+    if (isValidDocFilename(candidate)) names.add(candidate);
   }
   return [...names];
 }
@@ -49,7 +56,7 @@ export async function materializeRemote(baseUrl) {
     await writeFile(path.join(dir, 'data', `${name}.json`), await res.text(), 'utf8');
   }
 
-  for (const name of referencedPageNames(data.news, data.events)) {
+  for (const name of referencedPageNames(data.news, data.events, data.projects)) {
     const text = await readContentFile(baseUrl, `pages/${name}`);
     await writeFile(path.join(dir, 'pages', name), text, 'utf8');
   }

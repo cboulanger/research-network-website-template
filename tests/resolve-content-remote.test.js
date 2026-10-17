@@ -7,7 +7,7 @@ import path from 'node:path';
 import { materializeRemote } from '../scripts/lib/resolve-content-remote.mjs';
 
 const FIXTURE_SITE = { bannerLabel: 'CLFN', title: 'Test', subtitle: 'Test', favicon: 'favicon.ico', logo: 'logo.png' };
-const FIXTURE_NEWS = [{ date: '2026-01-01', title: 'x', url: 'pages.html?doc=about.md' }];
+const FIXTURE_NEWS = [{ date: '2026-01-01', title: 'x', url: 'about.md' }];
 const FIXTURE_EVENTS = [];
 
 function fakeFetch(files) {
@@ -47,6 +47,78 @@ test('materializeRemote fetches known JSON files, referenced pages, and referenc
     const favicon = await readFile(path.join(dir, 'images', 'favicon.ico'), 'utf8');
     assert.equal(favicon, 'fake-ico-bytes');
     await rm(dir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('materializeRemote fetches a page referenced by a project, not just by news/events', async () => {
+  const files = {
+    'data/site.json': FIXTURE_SITE,
+    'data/members.json': [],
+    'data/projects.json': [{ id: 'p1', title: 'Project One', participants: [], url: 'roadmap.md' }],
+    'data/events.json': [],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+    'pages/roadmap.md': '# Roadmap',
+    'images/favicon.ico': 'fake-ico-bytes',
+    'images/logo.png': 'fake-png-bytes',
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch(files);
+  try {
+    const dir = await materializeRemote('https://example.org/content');
+    const roadmap = await readFile(path.join(dir, 'pages', 'roadmap.md'), 'utf8');
+    assert.equal(roadmap, '# Roadmap');
+    await rm(dir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('materializeRemote still fetches a page stored in the deprecated pages.html?doc= link form', async () => {
+  const files = {
+    'data/site.json': FIXTURE_SITE,
+    'data/members.json': [],
+    'data/projects.json': [],
+    'data/events.json': [{ date: '2026-01-01', title: 'x', url: 'pages.html?doc=legacy.md' }],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+    'pages/legacy.md': '# Legacy',
+    'images/favicon.ico': 'fake-ico-bytes',
+    'images/logo.png': 'fake-png-bytes',
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch(files);
+  try {
+    const dir = await materializeRemote('https://example.org/content');
+    const legacy = await readFile(path.join(dir, 'pages', 'legacy.md'), 'utf8');
+    assert.equal(legacy, '# Legacy');
+    await rm(dir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('materializeRemote does not try to fetch a page for a plain external url', async () => {
+  const files = {
+    'data/site.json': FIXTURE_SITE,
+    'data/members.json': [],
+    'data/projects.json': [{ id: 'p1', title: 'Project One', participants: [], url: 'https://example.org/p1' }],
+    'data/events.json': [],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+    'images/favicon.ico': 'fake-ico-bytes',
+    'images/logo.png': 'fake-png-bytes',
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch(files);
+  try {
+    const dir = await materializeRemote('https://example.org/content');
+    await rm(dir, { recursive: true, force: true });
+    // No assertion needed beyond "did not throw": a plain URL has no
+    // matching page file in `files`, so a wrongly-attempted fetch for it
+    // would have rejected materializeRemote entirely.
   } finally {
     globalThis.fetch = originalFetch;
   }
