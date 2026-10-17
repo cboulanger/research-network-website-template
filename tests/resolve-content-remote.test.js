@@ -76,6 +76,33 @@ test('materializeRemote fetches a page referenced by a project, not just by news
   }
 });
 
+test('materializeRemote skips a page referenced by a project that no longer exists, instead of failing the whole build', async () => {
+  const files = {
+    'data/site.json': FIXTURE_SITE,
+    'data/members.json': [],
+    'data/projects.json': [{ id: 'p1', title: 'Project One', participants: [], url: 'deleted-page.md' }],
+    'data/events.json': [],
+    'data/news.json': [],
+    'pages/about.md': '# About',
+    'images/favicon.ico': 'fake-ico-bytes',
+    'images/logo.png': 'fake-png-bytes',
+  };
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const warnings = [];
+  globalThis.fetch = fakeFetch(files);
+  console.warn = (msg) => warnings.push(msg);
+  try {
+    const dir = await materializeRemote('https://example.org/content');
+    assert.equal(existsSync(path.join(dir, 'pages', 'deleted-page.md')), false);
+    assert.ok(warnings.some((w) => w.includes('deleted-page.md')), 'expected a warning naming the missing page');
+    await rm(dir, { recursive: true, force: true });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+  }
+});
+
 test('materializeRemote does not try to fetch a page for a plain external url', async () => {
   const files = {
     'data/site.json': FIXTURE_SITE,

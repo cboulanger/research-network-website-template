@@ -50,7 +50,16 @@ export async function materializeRemote(baseUrl) {
   }
 
   for (const name of referencedPageNames(data.news, data.events, data.projects)) {
-    const text = await readContentFile(baseUrl, `pages/${name}`);
+    let text;
+    try {
+      text = await readContentFile(baseUrl, `pages/${name}`);
+    } catch (err) {
+      if (err.status === 404) {
+        console.warn(`Warning: page "${name}" is referenced from news/events/projects but no longer exists in the content store; skipping it (the link will 404).`);
+        continue;
+      }
+      throw err;
+    }
     await writeFile(path.join(dir, 'pages', name), text, 'utf8');
   }
 
