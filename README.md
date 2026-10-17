@@ -530,6 +530,26 @@ site.
 See Part 1 (setup steps 2, 3, 5 and 6) for setting up a WebDAV store with
 Nextcloud and wiring it into `.env` and the GitHub repository.
 
+## Environment variables
+
+Every setting lives in `.env` (see `.env.example` for the full list with
+inline explanations); nothing here is required just to try the template with
+its demo content — `npm run build`/`npm run edit` work with no `.env` at all.
+What you actually need depends on what you're doing:
+
+| To do this... | ...set these |
+| --- | --- |
+| Deploy via GitHub | `GITHUB_TOKEN` (scope `repo`, or `Actions: write` for a fine-grained token); `GITHUB_REPOSITORY` if not a git clone |
+| Deploy via GitLab | `GITLAB_TOKEN` (scope `api`; a fine-grained token also needs the project's `Pages: Read` permission, or the "Open site" link stays empty after a successful deploy — see below); `GITLAB_HOST`; `GITLAB_PROJECT` if not a git clone |
+| Store content outside the repo (recommended for a real site) | `CONTENT_PATH`; `CONTENT_USERNAME`/`CONTENT_PASSWORD` if it needs Basic Auth |
+| Override the "Open site" link's address | `SITE_URL` (otherwise it's looked up from the forge, and hidden if that fails) |
+| Fetch a private Zotero library for `publications.json` | `ZOTERO_API_KEY` |
+| Let visitors propose edits (the `?edit` forms) | `NTFY_TOPIC`; `NTFY_SERVER` to use something other than `https://ntfy.sh` |
+| Anything else (`EDIT_PORT`, the `*_TIMEOUT_MS`/`*_POLL_*_MS` settings, `INBOX_POLL_INTERVAL_MS`) | optional; sensible defaults are used if left blank |
+
+`.env` contains credentials: never commit it or paste any of its values into
+chat/logs.
+
 ## Hosting on GitLab
 
 CI is defined for both GitHub Actions (`.github/workflows/ci.yml`) and GitLab
@@ -539,8 +559,9 @@ default branch. Use whichever matches where you host the repo; the other is
 inert. On GitLab, set `CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` as
 masked CI/CD variables, and put `GITLAB_TOKEN`, `GITLAB_HOST` (and, without
 git, `GITLAB_PROJECT=group/name`) in `.env` for
-`npm run deploy`, which triggers a rebuild on every forge whose token is set.
-Never commit `.env` or paste any of its values into chat/logs.
+`npm run deploy`, which triggers a rebuild on every forge whose token is set
+(see [Environment variables](#environment-variables) for the token's
+required scope/permissions).
 
 ## Development
 
