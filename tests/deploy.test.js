@@ -106,6 +106,23 @@ test('resolveSiteUrl reads the GitLab Pages address and returns null when nothin
   assert.equal(await resolveSiteUrl({ env: {}, fetchImpl: fakeFetch([]), remoteUrls: () => [] }), null);
 });
 
+test('resolveSiteUrl warns and returns null when the GitLab Pages API rejects the token (e.g. missing scope)', async () => {
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (msg) => warnings.push(msg);
+  try {
+    const url = await resolveSiteUrl({
+      env: { GITLAB_TOKEN: 't', GITLAB_HOST: 'gl.example', GITLAB_PROJECT: 'g/p' },
+      fetchImpl: async () => ({ ok: false, status: 403, statusText: 'Forbidden', text: async () => 'insufficient_granular_scope' }),
+      remoteUrls: () => [],
+    });
+    assert.equal(url, null);
+    assert.ok(warnings.some((w) => w.includes('403') && w.includes('insufficient_granular_scope')));
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('waitForDeployStatus passes through a result with no statusRef unchanged', async () => {
   const triggered = [{ name: 'github', ok: false, message: 'boom' }];
   const results = await waitForDeployStatus(triggered, {
