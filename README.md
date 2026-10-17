@@ -454,13 +454,15 @@ it on every push).
   the anchor/link id on the Members and Projects pages. `email` is a
   required contact field, never rendered or shipped to the browser, and
   is not used for linking.
-- `projects.json`: `participants` is a list of member `id`s.
+- `projects.json`: `participants` is a list of member `id`s. `url` accepts
+  the same absolute-URL-or-page-filename form as `news.json`'s `url`
+  below (see "Pages" further down).
 - `events.json`: sorted newest-first automatically at build time — no need
   to keep the file itself in date order.
 - `news.json`: same shape as `events.json`. `url` can be an absolute
-  `http(s)://` link (opens in a new tab) or `pages.html?doc=<filename>`
-  (rewritten at build time to the real static page URL, opens in the same
-  tab).
+  `http(s)://` link (opens in a new tab) or the bare filename of a page
+  under `pages/` (e.g. `about.md`, opens in the same tab) — see "Pages"
+  further down.
 
 - `publications.json` (optional): turns on the Publications page, nav
   link, and the landing page's "Latest Publications" box. Without it, none
@@ -492,7 +494,10 @@ it on every push).
 A longer write-up (e.g. to link from a news item) is a `.md` or `.html` file
 in the `pages/` directory — the build turns it into its own static page
 (`pages/about.md` → `public/pages/about.html`), no code changes required.
-Link to it from `news.json`/`events.json` with `pages.html?doc=<filename>`.
+Link to it from `news.json`/`events.json`/`projects.json` by setting `url`
+to the page's bare filename (e.g. `about.md`). The editor's admin UI shows
+a dropdown of matching pages as you type into any of these `url` fields,
+so you rarely need to type the filename by hand.
 
 The landing page's "About" box is `pages/about.md` too — rendered into
 `index.html` directly at build time. Editing it updates both places, which
@@ -525,6 +530,26 @@ site.
 See Part 1 (setup steps 2, 3, 5 and 6) for setting up a WebDAV store with
 Nextcloud and wiring it into `.env` and the GitHub repository.
 
+## Environment variables
+
+Every setting lives in `.env` (see `.env.example` for the full list with
+inline explanations); nothing here is required just to try the template with
+its demo content — `npm run build`/`npm run edit` work with no `.env` at all.
+What you actually need depends on what you're doing:
+
+| To do this... | ...set these |
+| --- | --- |
+| Deploy via GitHub | `GITHUB_TOKEN` (scope `repo`, or `Actions: write` for a fine-grained token); `GITHUB_REPOSITORY` if not a git clone |
+| Deploy via GitLab | `GITLAB_TOKEN` (scope `api`; a fine-grained token also needs the project's `Pages: Read` permission, or the "Open site" link stays empty after a successful deploy — see below); `GITLAB_HOST`; `GITLAB_PROJECT` if not a git clone |
+| Store content outside the repo (recommended for a real site) | `CONTENT_PATH`; `CONTENT_USERNAME`/`CONTENT_PASSWORD` if it needs Basic Auth |
+| Override the "Open site" link's address | `SITE_URL` (otherwise it's looked up from the forge, and hidden if that fails) |
+| Fetch a private Zotero library for `publications.json` | `ZOTERO_API_KEY` |
+| Let visitors propose edits (the `?edit` forms) | `NTFY_TOPIC`; `NTFY_SERVER` to use something other than `https://ntfy.sh` |
+| Anything else (`EDIT_PORT`, the `*_TIMEOUT_MS`/`*_POLL_*_MS` settings, `INBOX_POLL_INTERVAL_MS`) | optional; sensible defaults are used if left blank |
+
+`.env` contains credentials: never commit it or paste any of its values into
+chat/logs.
+
 ## Hosting on GitLab
 
 CI is defined for both GitHub Actions (`.github/workflows/ci.yml`) and GitLab
@@ -534,8 +559,9 @@ default branch. Use whichever matches where you host the repo; the other is
 inert. On GitLab, set `CONTENT_PATH`/`CONTENT_USERNAME`/`CONTENT_PASSWORD` as
 masked CI/CD variables, and put `GITLAB_TOKEN`, `GITLAB_HOST` (and, without
 git, `GITLAB_PROJECT=group/name`) in `.env` for
-`npm run deploy`, which triggers a rebuild on every forge whose token is set.
-Never commit `.env` or paste any of its values into chat/logs.
+`npm run deploy`, which triggers a rebuild on every forge whose token is set
+(see [Environment variables](#environment-variables) for the token's
+required scope/permissions).
 
 ## Development
 

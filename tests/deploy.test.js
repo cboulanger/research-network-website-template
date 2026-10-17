@@ -106,6 +106,23 @@ test('resolveSiteUrl reads the GitLab Pages address and returns null when nothin
   assert.equal(await resolveSiteUrl({ env: {}, fetchImpl: fakeFetch([]), remoteUrls: () => [] }), null);
 });
 
+test('resolveSiteUrl warns and returns null when the GitLab Pages API rejects the token (e.g. missing scope)', async () => {
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (msg) => warnings.push(msg);
+  try {
+    const url = await resolveSiteUrl({
+      env: { GITLAB_TOKEN: 't', GITLAB_HOST: 'gl.example', GITLAB_PROJECT: 'g/p' },
+      fetchImpl: async () => ({ ok: false, status: 403, statusText: 'Forbidden', text: async () => 'insufficient_granular_scope' }),
+      remoteUrls: () => [],
+    });
+    assert.equal(url, null);
+    assert.ok(warnings.some((w) => w.includes('403') && w.includes('insufficient_granular_scope')));
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('waitForDeployStatus passes through a result with no statusRef unchanged', async () => {
   const triggered = [{ name: 'github', ok: false, message: 'boom' }];
   const results = await waitForDeployStatus(triggered, {
@@ -137,7 +154,11 @@ test('waitForDeployStatus polls a GitHub run (not yet listed, then running, then
   const results = await waitForDeployStatus(triggered, { env: { GITHUB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
   assert.equal(results[0].ok, true);
   assert.match(results[0].message, /Succeeded/);
-  assert.match(results[0].message, /runs\/42/);
+  // The run URL is for investigating a failure, not for a success message
+  // the client would show instead of the "Open site" link; it's still
+  // exposed as its own field for callers that want it either way.
+  assert.doesNotMatch(results[0].message, /runs\/42/);
+  assert.equal(results[0].url, 'https://github.com/me/site/actions/runs/42');
 });
 
 test('waitForDeployStatus polls a GitLab pipeline to failure', async () => {
@@ -150,6 +171,8 @@ test('waitForDeployStatus polls a GitLab pipeline to failure', async () => {
   const results = await waitForDeployStatus(triggered, { env: { GITLAB_TOKEN: 't' }, fetchImpl, intervalMs: 1, timeoutMs: 2000 });
   assert.equal(results[0].ok, false);
   assert.match(results[0].message, /Failed/);
+  assert.match(results[0].message, /gl\/p\/7/);
+  assert.equal(results[0].url, 'https://gl/p/7');
 });
 
 test('waitForDeployStatus reports a timeout when the pipeline never finishes', async () => {

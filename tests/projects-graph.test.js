@@ -106,6 +106,19 @@ test('renderListView tags each project with its participant slugs', () => {
   assert.match(container.innerHTML, /<a href="members.html#bergman-bo" data-slug="bergman-bo">/);
 });
 
+test('renderListView links to an external project URL with target=_blank', () => {
+  const container = {};
+  renderListView([{ ...projects[0], url: 'https://example.org/project' }], members, container);
+  assert.match(container.innerHTML, /<a href="https:\/\/example\.org\/project" target="_blank" rel="noopener">Visit project/);
+});
+
+test('renderListView links to an internal page filename without target=_blank', () => {
+  const container = {};
+  renderListView([{ ...projects[0], url: 'about.md' }], members, container);
+  assert.match(container.innerHTML, /<a href="pages\/about\.html">Visit project/);
+  assert.doesNotMatch(container.innerHTML, /target="_blank"/);
+});
+
 test('parseMemberHash extracts the slug from a member hash', () => {
   assert.equal(parseMemberHash('#member=jane-doe'), 'jane-doe');
   assert.equal(parseMemberHash('member=jane-doe'), 'jane-doe');

@@ -1,5 +1,6 @@
 import { editorHints, renderRecordFields, collectRecordData } from '/assets/js/record-form.js';
 import { renderInboxEntries } from '/inbox-view.js';
+import { initPagesView, hidePagesPanels } from '/pages-view.js';
 
 const state = {
   types: [],
@@ -7,6 +8,7 @@ const state = {
   schema: null,
   records: [],
   members: [],
+  pages: [],
   editingKey: null,
   inboxEntry: null,
   inboxSaved: false, // record already saved during this inbox review
@@ -58,6 +60,7 @@ async function loadTypes() {
     const a = e.target.closest('a[data-type]');
     if (!a) return;
     e.preventDefault();
+    hidePagesPanels();
     selectType(a.dataset.type);
   });
 }
@@ -99,6 +102,7 @@ function probeTypes() {
 
 async function selectType(name) {
   state.currentType = state.types.find((t) => t.name === name);
+  document.getElementById('type-panel').hidden = false;
   document.querySelectorAll('#type-nav a').forEach((a) => a.classList.toggle('active', a.dataset.type === name));
   document.getElementById('type-title').textContent = name;
   document.getElementById('load-error').hidden = true;
@@ -114,6 +118,9 @@ async function selectType(name) {
     state.records = await fetchJSON(`/api/data/${name}`);
     if (name === 'projects') {
       state.members = await fetchJSON('/api/data/members');
+    }
+    if (name === 'events' || name === 'news' || name === 'projects') {
+      state.pages = await fetchJSON('/api/pages');
     }
   } catch (err) {
     setLoadFailed(name, err);
@@ -228,7 +235,7 @@ function showFormError(message, details) {
 function renderForm(record) {
   const form = document.getElementById('record-form');
   form.innerHTML = '';
-  renderRecordFields(form, { itemSchema: recordSchema(), record, typeName: state.currentType.name, members: state.members });
+  renderRecordFields(form, { itemSchema: recordSchema(), record, typeName: state.currentType.name, members: state.members, pages: state.pages });
 
   const actions = document.createElement('div');
   actions.className = 'field';
@@ -380,7 +387,25 @@ document.getElementById('deploy-button').addEventListener('click', async (e) => 
   try {
     const { results } = await fetchJSON('/api/deploy', { method: 'POST' });
     setStatusText(status, results.map((r) => `[${r.name}] ${r.message}`).join('\n'));
-    if (results.some((r) => !r.ok)) status.classList.add('error');
+    if (results.some((r) => !r.ok)) {
+      // A failed result's message already names the pipeline/run URL
+      // (setStatusText above turns it into a link), so the pipeline is
+      // reachable from here to see what went wrong.
+      status.classList.add('error');
+    } else {
+      // Every target succeeded: point at the live site instead, not the
+      // pipeline run that built it.
+      const { url } = await fetchJSON('/api/site').catch(() => ({ url: null }));
+      if (url) {
+        status.append(document.createElement('br'));
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Open site';
+        status.append(link);
+      }
+    }
   } catch (err) {
     status.classList.add('error');
     const details = Array.isArray(err.details)
@@ -451,6 +476,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function reviewSubmission(staleEntry) {
+  hidePagesPanels();
   inboxPanel.hidden = true;
   // Keyless collections are addressed by array index, so re-fetch to make sure it still points at the right record.
   const refreshed = await loadInbox();
@@ -486,3 +512,5 @@ loadTypes().then(() => {
   if (state.types.length) selectType(state.types[0].name);
   probeTypes();
 });
+
+initPagesView();

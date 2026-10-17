@@ -30,6 +30,16 @@ export function resolvePortraitUrl(portraitUrl) {
   return isExternalLink(portraitUrl) ? portraitUrl : `images/${portraitUrl}`;
 }
 
+// A url that is not an http(s) URL names a file in content/pages/; the
+// built site pre-renders every page to its own pages/<name>.html file (see
+// buildPagesDocs in scripts/build.mjs — there is no live pages.html router),
+// so that's the link form a bare filename resolves to.
+export function resolvePageLink(url) {
+  if (isExternalLink(url)) return url;
+  const stem = url.replace(/\.(md|html)$/, '');
+  return `pages/${stem}.html`;
+}
+
 export function slugify(value) {
   return String(value ?? '')
     .normalize('NFD')

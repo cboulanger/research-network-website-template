@@ -103,7 +103,15 @@ async function gitlabSiteUrl({ token, host, project }, { fetchImpl, remoteUrls }
   const res = await fetchImpl(`https://${host}/api/v4/projects/${projectPath}/pages`, {
     headers: { 'PRIVATE-TOKEN': token },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // Unlike GitHub, a self-managed GitLab instance's Pages domain isn't a
+    // fixed, guessable convention, so there's no fallback URL to compute
+    // here the way githubSiteUrl does — just make the failure visible
+    // (commonly a token missing the "Pages: Read" permission) instead of
+    // silently and permanently hiding the "Open site" link.
+    console.warn(`Could not look up the GitLab Pages URL (${res.status} ${res.statusText}): ${await res.text()}`);
+    return null;
+  }
   return (await res.json()).url || null;
 }
 
@@ -245,9 +253,16 @@ export async function waitForDeployStatus(
       }
       if (status.runId) statusRef.runId = status.runId;
       if (status.done) {
+        // On success the caller shows a link to the live site, not the
+        // pipeline run, so the run URL is only worth stating inline when
+        // something went wrong and needs investigating; it's still exposed
+        // as `url` either way for callers that want it regardless.
         finalByResult.set(result, {
           ok: status.success,
-          message: `${status.success ? 'Succeeded' : 'Failed'} (${status.description}): ${status.url || result.message}`,
+          message: status.success
+            ? `Succeeded (${status.description})`
+            : `Failed (${status.description}): ${status.url || result.message}`,
+          url: status.url,
         });
         pending.delete(result);
       }

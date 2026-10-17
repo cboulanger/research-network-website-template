@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fetchWithTimeout, timeoutFromEnv } from './fetch-with-timeout.mjs';
-import { isExternalLink } from '../../assets/js/shared.js';
+import { isExternalLink, isValidDocFilename } from '../../assets/js/shared.js';
 import { authHeaders, readContentFile } from './content-store.mjs';
 
 const DATA_FILES = ['site', 'members', 'projects', 'events', 'news'];
@@ -18,12 +18,12 @@ async function fetchOk(url) {
   return res;
 }
 
-function referencedPageNames(newsItems, eventsItems) {
+// events.url/news.url/projects.url store either an external URL or a bare
+// page filename (see assets/js/shared.js's resolvePageLink).
+function referencedPageNames(newsItems, eventsItems, projectItems) {
   const names = new Set(['about.md']);
-  const pattern = /^pages\.html\?doc=(.+)$/;
-  for (const item of [...newsItems, ...eventsItems]) {
-    const match = typeof item.url === 'string' ? item.url.match(pattern) : null;
-    if (match) names.add(match[1]);
+  for (const item of [...newsItems, ...eventsItems, ...projectItems]) {
+    if (typeof item.url === 'string' && isValidDocFilename(item.url)) names.add(item.url);
   }
   return [...names];
 }
@@ -49,8 +49,17 @@ export async function materializeRemote(baseUrl) {
     await writeFile(path.join(dir, 'data', `${name}.json`), await res.text(), 'utf8');
   }
 
-  for (const name of referencedPageNames(data.news, data.events)) {
-    const text = await readContentFile(baseUrl, `pages/${name}`);
+  for (const name of referencedPageNames(data.news, data.events, data.projects)) {
+    let text;
+    try {
+      text = await readContentFile(baseUrl, `pages/${name}`);
+    } catch (err) {
+      if (err.status === 404) {
+        console.warn(`Warning: page "${name}" is referenced from news/events/projects but no longer exists in the content store; skipping it (the link will 404).`);
+        continue;
+      }
+      throw err;
+    }
     await writeFile(path.join(dir, 'pages', name), text, 'utf8');
   }
 

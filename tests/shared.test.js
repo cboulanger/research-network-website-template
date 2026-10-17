@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, computeMemberId, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename, parseViewHash } from '../assets/js/shared.js';
+import { escapeHTML, getInitials, hashColor, navHTML, isExternalLink, resolvePortraitUrl, resolvePageLink, computeMemberId, textMatchesQuery, skipLinkHTML, isValidDocFilename, getDocType, titleFromFilename, parseViewHash } from '../assets/js/shared.js';
 
 test('getInitials combines first letters of first and last name', () => {
   assert.equal(getInitials('Jordan', 'Lee'), 'JL');
@@ -133,4 +133,14 @@ test('parseViewHash accepts allowed view names, with optional stray dot', () => 
   assert.equal(parseViewHash('#.graph', ['list', 'graph']), 'graph');
   assert.equal(parseViewHash('#member=x', ['list', 'graph']), null);
   assert.equal(parseViewHash('', ['list']), null);
+});
+
+test('resolvePageLink keeps http(s) URLs unchanged', () => {
+  assert.equal(resolvePageLink('https://example.org/a'), 'https://example.org/a');
+  assert.equal(resolvePageLink('http://example.org/a'), 'http://example.org/a');
+});
+
+test('resolvePageLink resolves a bare page filename to its static pages/ URL', () => {
+  assert.equal(resolvePageLink('about.md'), 'pages/about.html');
+  assert.equal(resolvePageLink('example.html'), 'pages/example.html');
 });

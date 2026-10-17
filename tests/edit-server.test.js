@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { createServer } from '../scripts/edit-server.mjs';
 
 async function startTestServer(fixture, options = {}) {
   const contentPath = await mkdtemp(path.join(tmpdir(), 'edit-content-'));
   await mkdir(path.join(contentPath, 'data'), { recursive: true });
+  await mkdir(path.join(contentPath, 'pages'), { recursive: true });
   await writeFile(path.join(contentPath, 'data', 'members.json'), JSON.stringify(fixture.members ?? []));
   await writeFile(path.join(contentPath, 'data', 'projects.json'), JSON.stringify(fixture.projects ?? []));
   await writeFile(path.join(contentPath, 'data', 'events.json'), JSON.stringify(fixture.events ?? []));
@@ -478,4 +480,191 @@ test('the inbox response tells the editor how often to poll (default 60s, never 
   assert.equal(await interval({}), 60000);
   assert.equal(await interval({ inboxPollIntervalMs: 30000 }), 30000);
   assert.equal(await interval({ inboxPollIntervalMs: 1000 }), 10000);
+});
+
+test('GET /api/pages lists pages sorted by title, deriving titles from <h1> or the filename', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(path.join(ctx.contentPath, 'pages', 'zzz-first.md'), '# A Title\n\nBody text.', 'utf8');
+    await writeFile(path.join(ctx.contentPath, 'pages', 'no-heading.html'), '<p>no heading here</p>', 'utf8');
+    const res = await fetch(`${ctx.base}/api/pages`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body, [
+      { filename: 'zzz-first.md', type: 'markdown', title: 'A Title' },
+      { filename: 'no-heading.html', type: 'html', title: 'No Heading' },
+    ]);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/pages derives a title with a literal quote mark, not an HTML-escaped one', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(
+      path.join(ctx.contentPath, 'pages', 'announcement.md'),
+      '# A new Working Group: "Histories of Law"\n\nBody text.',
+      'utf8'
+    );
+    const res = await fetch(`${ctx.base}/api/pages`);
+    const body = await res.json();
+    assert.deepEqual(body, [
+      { filename: 'announcement.md', type: 'markdown', title: 'A new Working Group: "Histories of Law"' },
+    ]);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET /api/pages/:filename returns the raw source', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(path.join(ctx.contentPath, 'pages', 'about.md'), '# About\n\nHello.', 'utf8');
+    const res = await fetch(`${ctx.base}/api/pages/about.md`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { filename: 'about.md', type: 'markdown', content: '# About\n\nHello.' });
+
+    assert.equal((await fetch(`${ctx.base}/api/pages/missing.md`)).status, 404);
+    assert.equal((await fetch(`${ctx.base}/api/pages/..%2f..%2fetc%2fpasswd`)).status, 404);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/pages creates a markdown page by default, slugifying the title', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/api/pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Our Team!' }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.deepEqual(body, { filename: 'our-team.md', type: 'markdown', content: '# Our Team!\n', title: 'Our Team!' });
+    assert.equal(await readFile(path.join(ctx.contentPath, 'pages', 'our-team.md'), 'utf8'), '# Our Team!\n');
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/pages creates an HTML page when format is "html"', async () => {
+  const ctx = await startTestServer({});
+  try {
+    const res = await fetch(`${ctx.base}/api/pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Our Team', format: 'html' }),
+    });
+    assert.equal(res.status, 201);
+    const body = await res.json();
+    assert.deepEqual(body, { filename: 'our-team.html', type: 'html', content: '<h1>Our Team</h1>\n', title: 'Our Team' });
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('POST /api/pages rejects a duplicate filename and a title with no usable slug', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(path.join(ctx.contentPath, 'pages', 'our-team.md'), '# Our Team\n', 'utf8');
+    const dup = await fetch(`${ctx.base}/api/pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Our Team' }),
+    });
+    assert.equal(dup.status, 409);
+
+    const empty = await fetch(`${ctx.base}/api/pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '!!!' }),
+    });
+    assert.equal(empty.status, 400);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('PUT /api/pages/:filename overwrites the content', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(path.join(ctx.contentPath, 'pages', 'about.md'), '# Old', 'utf8');
+    const res = await fetch(`${ctx.base}/api/pages/about.md`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '# New' }),
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { filename: 'about.md', type: 'markdown', content: '# New' });
+    assert.equal(await readFile(path.join(ctx.contentPath, 'pages', 'about.md'), 'utf8'), '# New');
+
+    assert.equal(
+      (await fetch(`${ctx.base}/api/pages/about.md`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })).status,
+      400
+    );
+    assert.equal(
+      (await fetch(`${ctx.base}/api/pages/not-a-valid-name`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: 'x' }) })).status,
+      404
+    );
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('DELETE /api/pages/:filename removes the page', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(path.join(ctx.contentPath, 'pages', 'about.md'), '# About', 'utf8');
+    const res = await fetch(`${ctx.base}/api/pages/about.md`, { method: 'DELETE' });
+    assert.equal(res.status, 204);
+    await assert.rejects(() => readFile(path.join(ctx.contentPath, 'pages', 'about.md'), 'utf8'));
+    assert.equal((await fetch(`${ctx.base}/api/pages/about.md`, { method: 'DELETE' })).status, 404);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('GET and DELETE /api/pages/:filename propagate a non-404 remote failure instead of reporting "not found"', async () => {
+  // Stubbing globalThis.fetch would also intercept this test's own calls to
+  // the local editor server (they go through the same global fetch), so
+  // instead point contentPath at a real (fake) remote HTTP server that
+  // returns non-404 failures for the page requests, exercising the real
+  // readContentFile/deleteContentFile network path.
+  const fakeRemote = http.createServer((req, res) => {
+    if (req.method === 'DELETE') {
+      res.writeHead(403, 'Forbidden');
+      res.end();
+      return;
+    }
+    res.writeHead(500, 'Internal Server Error');
+    res.end();
+  });
+  await new Promise((resolve) => fakeRemote.listen(0, '127.0.0.1', resolve));
+  const remoteBase = `http://127.0.0.1:${fakeRemote.address().port}/content`;
+
+  const server = createServer({ contentPath: remoteBase, schemaDir: 'schema', editorDir: 'scripts/editor' });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const getRes = await fetch(`${base}/api/pages/about.md`);
+    assert.notEqual(getRes.status, 404);
+
+    const deleteRes = await fetch(`${base}/api/pages/about.md`, { method: 'DELETE' });
+    assert.notEqual(deleteRes.status, 404);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => fakeRemote.close(resolve));
+  }
+});
+
+test('the editor serves shared.js and pages-view.js', async () => {
+  const ctx = await startTestServer({});
+  try {
+    assert.equal((await fetch(`${ctx.base}/assets/js/shared.js`)).status, 200);
+    assert.equal((await fetch(`${ctx.base}/pages-view.js`)).status, 200);
+  } finally {
+    await ctx.close();
+  }
 });

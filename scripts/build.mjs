@@ -5,11 +5,11 @@ import path from 'node:path';
 import { marked } from 'marked';
 import { resolveContent } from './lib/resolve-content.mjs';
 import { renderPage } from './lib/page-template.mjs';
-import { rewritePagesUrl } from './lib/rewrite-pages-url.mjs';
 import { parseZoteroGroupId, fetchZoteroItems } from './lib/zotero.mjs';
 import { selectMemberPublications } from './lib/publications.mjs';
 import { escapeHTML } from '../assets/js/shared.js';
-import { isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
+import { isValidDocFilename, getDocType } from '../assets/js/shared.js';
+import { extractPageTitle } from './lib/page-title.mjs';
 import { renderNewsTeaser, renderNews } from '../assets/js/news.js';
 import { renderEventsTeaser, renderEvents } from '../assets/js/events.js';
 import { renderPublicationsTeaser, renderPublications } from '../assets/js/publications.js';
@@ -62,10 +62,6 @@ async function loadPublications(config, members) {
   return publications;
 }
 
-function withRewrittenUrls(items) {
-  return items.map((item) => ({ ...item, url: rewritePagesUrl(item.url) }));
-}
-
 async function buildIndexPage(content) {
   const { site } = content;
   const logoTag = site.logo
@@ -75,9 +71,9 @@ async function buildIndexPage(content) {
   const aboutHTML = marked.parse(aboutMarkdown);
 
   const newsTeaser = {};
-  renderNewsTeaser(withRewrittenUrls(content.news), newsTeaser);
+  renderNewsTeaser(content.news, newsTeaser);
   const eventsTeaser = {};
-  renderEventsTeaser(withRewrittenUrls(content.events), eventsTeaser);
+  renderEventsTeaser(content.events, eventsTeaser);
   let publicationsBox = '';
   if (content.publications) {
     const publicationsTeaser = {};
@@ -167,7 +163,7 @@ async function buildMembersPage(content) {
 async function buildEventsPage(content) {
   const { site, events } = content;
   const listContainer = {};
-  renderEvents(withRewrittenUrls(events), listContainer);
+  renderEvents(events, listContainer);
   const mainHTML = `<h1>Events</h1>\n<div id="events-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'events.html'),
@@ -186,7 +182,7 @@ async function buildEventsPage(content) {
 async function buildNewsPage(content) {
   const { site, news } = content;
   const listContainer = {};
-  renderNews(withRewrittenUrls(news), listContainer);
+  renderNews(news, listContainer);
   const mainHTML = `<h1>News</h1>\n<div id="news-list">${listContainer.innerHTML}</div>`;
   await writeFile(
     path.join(PUBLIC_DIR, 'news.html'),
@@ -241,8 +237,7 @@ async function buildPagesDocs(content) {
     const source = await readFile(path.join(pagesDir, filename), 'utf8');
     const type = getDocType(filename);
     const bodyHTML = type === 'markdown' ? marked.parse(source) : source;
-    const headingMatch = bodyHTML.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    const title = headingMatch ? headingMatch[1].replace(/<[^>]+>/g, '') : titleFromFilename(filename);
+    const title = extractPageTitle(source, filename);
     const outName = filename.replace(/\.(md|html)$/, '.html');
 
     const mainHTML = `<div id="page-content" class="doc-content">${bodyHTML}</div>\n<p id="page-back-link"></p>`;
