@@ -499,6 +499,24 @@ test('GET /api/pages lists pages sorted by title, deriving titles from <h1> or t
   }
 });
 
+test('GET /api/pages derives a title with a literal quote mark, not an HTML-escaped one', async () => {
+  const ctx = await startTestServer({});
+  try {
+    await writeFile(
+      path.join(ctx.contentPath, 'pages', 'announcement.md'),
+      '# A new Working Group: "Histories of Law"\n\nBody text.',
+      'utf8'
+    );
+    const res = await fetch(`${ctx.base}/api/pages`);
+    const body = await res.json();
+    assert.deepEqual(body, [
+      { filename: 'announcement.md', type: 'markdown', title: 'A new Working Group: "Histories of Law"' },
+    ]);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test('GET /api/pages/:filename returns the raw source', async () => {
   const ctx = await startTestServer({});
   try {

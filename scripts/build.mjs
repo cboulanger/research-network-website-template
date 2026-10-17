@@ -8,7 +8,8 @@ import { renderPage } from './lib/page-template.mjs';
 import { parseZoteroGroupId, fetchZoteroItems } from './lib/zotero.mjs';
 import { selectMemberPublications } from './lib/publications.mjs';
 import { escapeHTML } from '../assets/js/shared.js';
-import { isValidDocFilename, getDocType, titleFromFilename } from '../assets/js/shared.js';
+import { isValidDocFilename, getDocType } from '../assets/js/shared.js';
+import { extractPageTitle } from './lib/page-title.mjs';
 import { renderNewsTeaser, renderNews } from '../assets/js/news.js';
 import { renderEventsTeaser, renderEvents } from '../assets/js/events.js';
 import { renderPublicationsTeaser, renderPublications } from '../assets/js/publications.js';
@@ -236,8 +237,7 @@ async function buildPagesDocs(content) {
     const source = await readFile(path.join(pagesDir, filename), 'utf8');
     const type = getDocType(filename);
     const bodyHTML = type === 'markdown' ? marked.parse(source) : source;
-    const headingMatch = bodyHTML.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    const title = headingMatch ? headingMatch[1].replace(/<[^>]+>/g, '') : titleFromFilename(filename);
+    const title = extractPageTitle(source, filename);
     const outName = filename.replace(/\.(md|html)$/, '.html');
 
     const mainHTML = `<div id="page-content" class="doc-content">${bodyHTML}</div>\n<p id="page-back-link"></p>`;

@@ -72,6 +72,25 @@ test('build.mjs produces static HTML with no raw email addresses anywhere in the
   await rm(publicDir, { recursive: true, force: true });
 });
 
+test('build.mjs titles a page from its heading without double-escaping HTML entities', async (t) => {
+  const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
+  const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));
+  await writeFixtureContent(contentDir);
+  await writeFile(
+    path.join(contentDir, 'pages', 'announcement.md'),
+    '# A new Working Group: "Histories of Law"\n\nBody text.'
+  );
+
+  await runBuild(contentDir, publicDir);
+
+  const pageHTML = await readFile(path.join(publicDir, 'pages', 'announcement.html'), 'utf8');
+  assert.match(pageHTML, /<title>A new Working Group: &quot;Histories of Law&quot; — TX<\/title>/);
+  assert.doesNotMatch(pageHTML, /&amp;quot;/);
+
+  await rm(contentDir, { recursive: true, force: true });
+  await rm(publicDir, { recursive: true, force: true });
+});
+
 test('build.mjs copies static assets (CSS and client JS) into public/', async (t) => {
   const contentDir = await mkdtemp(path.join(tmpdir(), 'build-content-'));
   const publicDir = await mkdtemp(path.join(tmpdir(), 'build-public-'));

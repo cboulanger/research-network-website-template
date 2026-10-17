@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import Ajv from 'ajv';
-import { marked } from 'marked';
 import { readContentFile, writeContentFile, deleteContentFile, listContentDir } from './lib/content-store.mjs';
 import { getEditableTypes } from './lib/editable-types.mjs';
 import { findRecordIndex, replaceRecord, deleteRecord } from './lib/record-store.mjs';
@@ -14,7 +13,8 @@ import { createInbox } from './lib/inbox.mjs';
 import { contentStateStore, fileStateStore, withLegacyFallback } from './lib/inbox-state-store.mjs';
 import { getPublicEditConfig } from './lib/public-edit.mjs';
 import { deploy, resolveSiteUrl, waitForDeployStatus } from './lib/deploy.mjs';
-import { computeMemberId, slugify, isValidDocFilename, getDocType, titleFromFilename, escapeHTML } from '../assets/js/shared.js';
+import { extractPageTitle } from './lib/page-title.mjs';
+import { computeMemberId, slugify, isValidDocFilename, getDocType, escapeHTML } from '../assets/js/shared.js';
 
 // Some networks have a broken IPv6 route to the WebDAV host, which stalls the
 // connection until Node's 10s connect timeout. Try IPv4 first.
@@ -139,9 +139,7 @@ export function createServer({
 
   async function pageTitle(filename) {
     const source = await readContentFile(contentPath, `pages/${filename}`);
-    const bodyHTML = getDocType(filename) === 'markdown' ? marked.parse(source) : source;
-    const headingMatch = bodyHTML.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    return headingMatch ? headingMatch[1].replace(/<[^>]+>/g, '') : titleFromFilename(filename);
+    return extractPageTitle(source, filename);
   }
 
   async function listPageFilenames() {
