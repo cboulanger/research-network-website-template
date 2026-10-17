@@ -454,13 +454,15 @@ it on every push).
   the anchor/link id on the Members and Projects pages. `email` is a
   required contact field, never rendered or shipped to the browser, and
   is not used for linking.
-- `projects.json`: `participants` is a list of member `id`s.
+- `projects.json`: `participants` is a list of member `id`s. `url` accepts
+  the same absolute-URL-or-page-filename form as `news.json`'s `url`
+  below (see "Pages" further down).
 - `events.json`: sorted newest-first automatically at build time — no need
   to keep the file itself in date order.
 - `news.json`: same shape as `events.json`. `url` can be an absolute
-  `http(s)://` link (opens in a new tab) or `pages.html?doc=<filename>`
-  (rewritten at build time to the real static page URL, opens in the same
-  tab).
+  `http(s)://` link (opens in a new tab) or the bare filename of a page
+  under `pages/` (e.g. `about.md`, opens in the same tab) — see "Pages"
+  further down.
 
 - `publications.json` (optional): turns on the Publications page, nav
   link, and the landing page's "Latest Publications" box. Without it, none
@@ -492,7 +494,10 @@ it on every push).
 A longer write-up (e.g. to link from a news item) is a `.md` or `.html` file
 in the `pages/` directory — the build turns it into its own static page
 (`pages/about.md` → `public/pages/about.html`), no code changes required.
-Link to it from `news.json`/`events.json` with `pages.html?doc=<filename>`.
+Link to it from `news.json`/`events.json`/`projects.json` by setting `url`
+to the page's bare filename (e.g. `about.md`). The editor's admin UI shows
+a dropdown of matching pages as you type into any of these `url` fields,
+so you rarely need to type the filename by hand.
 
 The landing page's "About" box is `pages/about.md` too — rendered into
 `index.html` directly at build time. Editing it updates both places, which
