@@ -256,13 +256,15 @@ export function createServer({
         try {
           ({ dropped } = await inbox.refresh());
         } catch (err) {
-          warning = `Could not fetch new submissions: ${err.message}`;
+          console.error('Inbox refresh failed:', err);
+          warning = `Could not fetch new submissions: ${err.shortMessage || err.message}`;
         }
         let entries = [];
         try {
           entries = await inbox.list();
         } catch (err) {
-          warning = `Could not read the inbox: ${err.message}`;
+          console.error('Inbox read failed:', err);
+          warning = `Could not read the inbox: ${err.shortMessage || err.message}`;
         }
         return sendJSON(res, 200, { enabled: true, entries, dropped, warning, pollIntervalMs });
       }
